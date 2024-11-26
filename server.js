@@ -1,3 +1,6 @@
+require('dotenv').config();
+console.log('Port:', process.env.PORT);
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
@@ -5,15 +8,20 @@ const session = require('express-session');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10;
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(session({
-    secret: 'your_secret_key',
+    secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: true,
-    cookie: { secure: false } // Set to true if using HTTPS
+    saveUninitialized: false,
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000
+    }
 }));
 
 // In-memory storage for simplicity
