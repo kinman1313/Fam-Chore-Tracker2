@@ -1,1 +1,202 @@
- 
+body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 30px;
+}
+
+.chores-list {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.chore-item {
+    padding: 15px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background-color: #f9f9f9;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.chore-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.chore-item.completed {
+    background-color: #f0f8f0;
+    border-color: #28a745;
+}
+
+.chore-item.completed .chore-name {
+    text-decoration: line-through;
+    color: #666;
+}
+
+.delete-chore {
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: auto;
+    transition: all 0.3s ease;
+}
+
+.delete-chore:hover {
+    background-color: #cc0000;
+    transform: scale(1.05);
+}
+
+.chore-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #28a745;
+}
+
+.completion-status {
+    font-size: 0.9em;
+    color: #666;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background-color: #eee;
+}
+
+.completion-status.completed {
+    color: #28a745;
+    background-color: #e8f5e9;
+}
+
+.completed-at {
+    font-size: 0.8em;
+    color: #666;
+    font-style: italic;
+}
+
+.add-chore-form {
+    background-color: white;
+    padding: 25px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.add-chore-form h2 {
+    margin-top: 0;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+.add-chore-form input {
+    padding: 10px;
+    margin-right: 10px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    transition: border-color 0.3s ease;
+}
+
+.add-chore-form input:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+
+.add-chore-form button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.add-chore-form button:hover {
+    background-color: #45a049;
+    transform: scale(1.05);
+}
+
+.logout-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #666;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+}
+
+.logout-btn:hover {
+    background-color: #444;
+    transform: scale(1.05);
+}
+
+.chore-item.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.error-message {
+    background-color: #fff3f3;
+    color: #dc3545;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 4px;
+    border-left: 4px solid #dc3545;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-10px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+
+    .chore-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .delete-chore {
+        margin-left: 0;
+        width: 100%;
+        text-align: center;
+    }
+
+    .add-chore-form input {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .add-chore-form button {
+        width: 100%;
+    }
+} 

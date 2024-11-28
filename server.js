@@ -23,6 +23,8 @@ app.use(session({
         maxAge: 24 * 60 * 60 * 1000
     }
 }));
+app.use(express.static('public'));
+app.use(express.json());
 
 // Authentication Middleware
 const authenticateUser = (req, res, next) => {

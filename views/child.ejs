@@ -1,52 +1,63 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Child View</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        .chore-list {
-            list-style-type: none;
-            padding: 0;
-        }
-        .chore-item {
-            background: #f9f9f9;
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-    </style>
+    <title>Child Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Your Chores</h1>
-        <ul class="chore-list">
-            <% chores.forEach(chore => { %>
-                <li class="chore-item"><%= chore.name %></li>
-            <% }) %>
-        </ul>
-        <a href="/logout">Logout</a>
+    <h1>My Chores</h1>
+
+    <div class="chores-list">
+        <% chores.forEach(function(chore) { %>
+            <div class="chore-item <%= chore.completed ? 'completed' : '' %>" data-id="<%= chore.id %>">
+                <input type="checkbox" 
+                       class="chore-checkbox" 
+                       <%= chore.completed ? 'checked' : '' %>
+                       onchange="toggleChore(<%= chore.id %>)">
+                <span class="chore-name"><%= chore.name %></span>
+                <span class="completion-status">
+                    Status: <%= chore.completed ? 'Completed' : 'Pending' %>
+                </span>
+                <% if (chore.completedAt) { %>
+                    <span class="completed-at">
+                        Completed: <%= new Date(chore.completedAt).toLocaleString() %>
+                    </span>
+                <% } %>
+            </div>
+        <% }); %>
     </div>
+
+    <a href="/logout" class="logout-btn">Logout</a>
+
+    <script>
+    function toggleChore(choreId) {
+        fetch(`/toggle-chore/${choreId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const choreElement = document.querySelector(`[data-id="${choreId}"]`);
+                if (data.completed) {
+                    choreElement.classList.add('completed');
+                } else {
+                    choreElement.classList.remove('completed');
+                }
+                location.reload(); // Refresh to show updated completion status
+            } else {
+                alert('Error updating chore');
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error updating chore');
+            location.reload();
+        });
+    }
+    </script>
 </body>
 </html>
