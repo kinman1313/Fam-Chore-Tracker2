@@ -45,6 +45,43 @@ const authenticateParent = (req, res, next) => {
 let users = [];
 let chores = [];
 
+// Add default users for testing
+users.push({
+    username: 'parent',
+    password: 'parent123',
+    role: 'parent'
+});
+
+users.push({
+    username: 'child',
+    password: 'child123',
+    role: 'child'
+});
+
+users.push({
+    username: 'bodhi',
+    password: 'bodhi123',
+    role: 'child'
+});
+
+users.push({
+    username: 'holden',
+    password: 'holden123',
+    role: 'child'
+});
+
+users.push({
+    username: 'Kelli',
+    password: 'kelli123',
+    role: 'parent'
+});
+
+users.push({
+    username: 'Kevin',
+    password: 'kevin123',
+    role: 'parent'
+});
+
 // EJS setup
 app.set('view engine', 'ejs');
 
