@@ -3,60 +3,136 @@
 <head>
     <title>Child Dashboard</title>
     <link rel="stylesheet" href="/styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
     <h1>My Chores</h1>
 
+    <div id="status-message" class="status-message"></div>
+
     <div class="chores-list">
-        <% chores.forEach(function(chore) { %>
-            <div class="chore-item <%= chore.completed ? 'completed' : '' %>" data-id="<%= chore.id %>">
-                <input type="checkbox" 
-                       class="chore-checkbox" 
-                       <%= chore.completed ? 'checked' : '' %>
-                       onchange="toggleChore(<%= chore.id %>)">
-                <span class="chore-name"><%= chore.name %></span>
-                <span class="completion-status">
-                    Status: <%= chore.completed ? 'Completed' : 'Pending' %>
-                </span>
-                <% if (chore.completedAt) { %>
-                    <span class="completed-at">
-                        Completed: <%= new Date(chore.completedAt).toLocaleString() %>
-                    </span>
-                <% } %>
+        <% if (chores.length === 0) { %>
+            <div class="empty-state">
+                <p>No chores assigned yet! 🎉</p>
             </div>
-        <% }); %>
+        <% } else { %>
+            <div class="progress-bar">
+                <% const completed = chores.filter(c => c.completed).length; %>
+                <% const total = chores.length; %>
+                <% const percentage = (completed / total) * 100; %>
+                <div class="progress" style="width: <%= percentage %>%"></div>
+                <span class="progress-text">
+                    <%= completed %> of <%= total %> chores completed
+                </span>
+            </div>
+
+            <% chores.forEach(function(chore) { %>
+                <div class="chore-item <%= chore.completed ? 'completed' : '' %>" data-id="<%= chore.id %>">
+                    <div class="chore-header">
+                        <input type="checkbox" 
+                               class="chore-checkbox" 
+                               <%= chore.completed ? 'checked' : '' %>
+                               onchange="toggleChore(<%= chore.id %>)">
+                        <span class="chore-name"><%= chore.name %></span>
+                    </div>
+                    
+                    <div class="chore-details">
+                        <span class="completion-status <%= chore.completed ? 'completed' : 'pending' %>">
+                            <i class="status-icon"></i>
+                            <%= chore.completed ? 'Completed' : 'Pending' %>
+                        </span>
+                        <% if (chore.completedAt) { %>
+                            <span class="completed-at">
+                                Completed: <%= new Date(chore.completedAt).toLocaleString() %>
+                            </span>
+                        <% } %>
+                    </div>
+                </div>
+            <% }); %>
+        <% } %>
     </div>
 
     <a href="/logout" class="logout-btn">Logout</a>
 
     <script>
+    function showMessage(message, type = 'success') {
+        const statusDiv = document.getElementById('status-message');
+        statusDiv.className = `status-message ${type}`;
+        statusDiv.textContent = message;
+        statusDiv.style.display = 'block';
+        
+        setTimeout(() => {
+            statusDiv.style.opacity = '0';
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+                statusDiv.style.opacity = '1';
+            }, 300);
+        }, 3000);
+    }
+
     function toggleChore(choreId) {
+        const choreElement = document.querySelector(`[data-id="${choreId}"]`);
+        choreElement.classList.add('loading');
+
         fetch(`/toggle-chore/${choreId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                const choreElement = document.querySelector(`[data-id="${choreId}"]`);
+                const checkbox = choreElement.querySelector('.chore-checkbox');
+                const statusSpan = choreElement.querySelector('.completion-status');
+                const completedAtSpan = choreElement.querySelector('.completed-at') || 
+                                      document.createElement('span');
+
                 if (data.completed) {
                     choreElement.classList.add('completed');
+                    statusSpan.textContent = 'Completed';
+                    statusSpan.className = 'completion-status completed';
+                    completedAtSpan.className = 'completed-at';
+                    completedAtSpan.textContent = `Completed: ${new Date().toLocaleString()}`;
+                    showMessage('Chore marked as completed! 🎉');
                 } else {
                     choreElement.classList.remove('completed');
+                    statusSpan.textContent = 'Pending';
+                    statusSpan.className = 'completion-status pending';
+                    completedAtSpan.remove();
+                    showMessage('Chore marked as pending');
                 }
-                location.reload(); // Refresh to show updated completion status
+
+                // Update progress bar
+                updateProgress();
             } else {
-                alert('Error updating chore');
-                location.reload();
+                showMessage('Error updating chore', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error updating chore');
-            location.reload();
+            showMessage('Error updating chore', 'error');
+        })
+        .finally(() => {
+            choreElement.classList.remove('loading');
         });
+    }
+
+    function updateProgress() {
+        const total = document.querySelectorAll('.chore-item').length;
+        const completed = document.querySelectorAll('.chore-item.completed').length;
+        const percentage = (completed / total) * 100;
+        
+        const progressBar = document.querySelector('.progress');
+        const progressText = document.querySelector('.progress-text');
+        
+        progressBar.style.width = `${percentage}%`;
+        progressText.textContent = `${completed} of ${total} chores completed`;
     }
     </script>
 </body>

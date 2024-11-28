@@ -256,4 +256,62 @@ h1 {
     .add-chore-form button {
         display: none;
     }
+}
+
+/* Progress Bar */
+.progress-bar {
+    background-color: #eee;
+    border-radius: 10px;
+    margin: 20px 0;
+    height: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress {
+    background-color: #4CAF50;
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    color: #333;
+    font-size: 12px;
+    line-height: 20px;
+}
+
+/* Status Message */
+.status-message {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 4px;
+    display: none;
+    transition: opacity 0.3s ease;
+}
+
+.status-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.empty-state p {
+    font-size: 18px;
+    margin: 0;
 } 
