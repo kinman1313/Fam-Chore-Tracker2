@@ -24,6 +24,21 @@ app.use(session({
     }
 }));
 
+// Authentication Middleware
+const authenticateUser = (req, res, next) => {
+    if (!req.session.user) {
+        return res.status(401).json({ error: 'Please log in to continue' });
+    }
+    next();
+};
+
+const authenticateParent = (req, res, next) => {
+    if (!req.session.user || req.session.user.role !== 'parent') {
+        return res.status(403).json({ error: 'Only parents can perform this action' });
+    }
+    next();
+};
+
 // In-memory storage for simplicity
 let users = [];
 let chores = [];
@@ -90,7 +105,13 @@ app.post('/add-chore', (req, res) => {
     }
     const { choreName, assignedTo } = req.body;
     if (choreName && assignedTo) {
-        chores.push({ name: choreName, assignedTo: assignedTo });
+        chores.push({ 
+            id: Date.now(),
+            name: choreName, 
+            assignedTo: assignedTo,
+            completed: false,
+            createdAt: new Date()
+        });
     }
     res.redirect('/dashboard');
 });
@@ -104,6 +125,48 @@ app.post('/send-message', (req, res) => {
         }, 1000);
     } else {
         res.json({ sender: 'Bot', message: 'Please type a message' });
+    }
+});
+
+// Delete chore (admin only)
+app.delete('/delete-chore/:id', authenticateParent, (req, res) => {
+    try {
+        const choreId = parseInt(req.params.id);
+        const choreIndex = chores.findIndex(chore => chore.id === choreId);
+        
+        if (choreIndex === -1) {
+            return res.status(404).json({ error: 'Chore not found' });
+        }
+        
+        chores.splice(choreIndex, 1);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Error deleting chore' });
+    }
+});
+
+// Toggle chore completion (child)
+app.post('/toggle-chore/:id', authenticateUser, (req, res) => {
+    try {
+        const choreId = parseInt(req.params.id);
+        const chore = chores.find(c => c.id === choreId);
+        
+        if (!chore) {
+            return res.status(404).json({ error: 'Chore not found' });
+        }
+        
+        // Only allow if the chore is assigned to the logged-in user or if user is parent
+        if (req.session.user.role !== 'parent' && 
+            chore.assignedTo.toLowerCase() !== req.session.user.username.toLowerCase()) {
+            return res.status(403).json({ error: 'Not authorized to modify this chore' });
+        }
+        
+        chore.completed = !chore.completed;
+        chore.completedAt = chore.completed ? new Date() : null;
+        
+        res.json({ success: true, completed: chore.completed });
+    } catch (error) {
+        res.status(500).json({ error: 'Error updating chore' });
     }
 });
 
