@@ -91,30 +91,47 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-    
     try {
+        const { username, password } = req.body;
+        console.log('Login attempt for username:', username); // Debug log
+
         const user = await userOperations.findByUsername(username);
-        
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.render('login', {
+        console.log('User found:', user ? 'Yes' : 'No'); // Debug log
+
+        if (!user) {
+            return res.render('login', { 
                 error: 'Invalid username or password',
-                username
+                username 
             });
         }
-        
-        req.session.user = {
-            id: user.id,
-            username: user.username,
-            role: user.role
-        };
-        
-        res.redirect('/dashboard');
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        console.log('Password valid:', validPassword); // Debug log
+
+        if (!validPassword) {
+            return res.render('login', { 
+                error: 'Invalid username or password',
+                username 
+            });
+        }
+
+        // Set user session
+        req.session.userId = user.id;
+        req.session.userRole = user.role;
+        req.session.username = user.username;
+
+        // Redirect based on role
+        if (user.role === 'parent') {
+            res.redirect('/admin');
+        } else {
+            res.redirect('/dashboard');
+        }
+
     } catch (error) {
-        console.error('Login error:', error);
-        res.render('login', {
+        console.error('Login error:', error); // Error log
+        res.render('login', { 
             error: 'An error occurred during login',
-            username
+            username: req.body.username 
         });
     }
 });
@@ -587,6 +604,37 @@ app.post('/reset-password/:token', async (req, res) => {
         res.status(500).json({ 
             error: 'Error resetting password'
         });
+    }
+});
+
+// TEMPORARY ROUTE - REMOVE AFTER USE
+app.get('/temp-reset-passwords', async (req, res) => {
+    try {
+        const defaultPasswords = {
+            'Kelli': 'kelli123',
+            'Kevin': 'kevin123',
+            'Bodhi': 'bodhi123',
+            'Holden': 'holden123'
+        };
+
+        for (const [username, password] of Object.entries(defaultPasswords)) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'UPDATE users SET password = ? WHERE username = ?',
+                    [hashedPassword, username],
+                    function(err) {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+        }
+
+        res.send('Passwords reset successfully');
+    } catch (error) {
+        console.error('Password reset error:', error);
+        res.status(500).send('Error resetting passwords');
     }
 });
 
