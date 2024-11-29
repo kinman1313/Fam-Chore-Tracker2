@@ -1,6 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 // Create a database connection
 const db = new sqlite3.Database(path.join(__dirname, 'chore_tracker.db'), (err) => {
