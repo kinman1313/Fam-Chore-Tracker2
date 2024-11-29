@@ -162,29 +162,72 @@ app.get('/reset-password', (req, res) => {
 });
 
 app.post('/reset-password', async (req, res) => {
-    const { username, currentPassword, newPassword } = req.body;
-    
     try {
+        const { username, currentPassword, newPassword, confirmPassword } = req.body;
+
+        // Server-side validation
+        if (!username || !currentPassword || !newPassword || !confirmPassword) {
+            return res.render('reset-password', {
+                error: 'All fields are required',
+                username
+            });
+        }
+
+        if (newPassword.length < 6) {
+            return res.render('reset-password', {
+                error: 'New password must be at least 6 characters long',
+                username
+            });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.render('reset-password', {
+                error: 'New passwords do not match',
+                username
+            });
+        }
+
+        // Find user and verify current password
         const user = await userOperations.findByUsername(username);
-        
-        if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+        if (!user) {
             return res.render('reset-password', {
                 error: 'Invalid username or current password',
                 username
             });
         }
-        
+
+        // Verify current password
+        const validPassword = await bcrypt.compare(currentPassword, user.password);
+        if (!validPassword) {
+            return res.render('reset-password', {
+                error: 'Invalid username or current password',
+                username
+            });
+        }
+
+        // Ensure new password is different
+        if (currentPassword === newPassword) {
+            return res.render('reset-password', {
+                error: 'New password must be different from current password',
+                username
+            });
+        }
+
+        // Update password
         await userOperations.updatePassword(username, newPassword);
-        
-        res.render('login', {
-            success: 'Password updated successfully! Please log in with your new password.',
-            username
-        });
+
+        // Redirect to login with success message
+        req.session.flashMessage = {
+            type: 'success',
+            text: 'Password successfully updated. Please login with your new password.'
+        };
+        res.redirect('/login');
+
     } catch (error) {
         console.error('Password reset error:', error);
         res.render('reset-password', {
-            error: 'Error resetting password',
-            username
+            error: 'An error occurred while resetting your password',
+            username: req.body.username
         });
     }
 });
@@ -465,6 +508,85 @@ app.get('/calendar', authenticateUser, async (req, res) => {
     } catch (error) {
         console.error('Calendar error:', error);
         res.status(500).json({ error: 'Error loading calendar' });
+    }
+});
+
+// Request password reset
+app.post('/request-reset', async (req, res) => {
+    try {
+        const { username } = req.body;
+        const user = await userOperations.findByUsername(username);
+        
+        if (user) {
+            const resetToken = await userOperations.createPasswordReset(user.id);
+            
+            // In a real application, you would send this via email
+            // For now, we'll just send it in the response
+            res.json({ 
+                message: 'Password reset link generated',
+                resetLink: `/reset-password/${resetToken}`
+            });
+        } else {
+            // Don't reveal if user exists or not
+            res.json({ 
+                message: 'If an account exists with this username, a password reset link will be sent.'
+            });
+        }
+    } catch (error) {
+        console.error('Password reset request error:', error);
+        res.status(500).json({ error: 'Error processing reset request' });
+    }
+});
+
+// Reset password form
+app.get('/reset-password/:token', async (req, res) => {
+    try {
+        const resetInfo = await userOperations.verifyResetToken(req.params.token);
+        if (resetInfo) {
+            res.render('reset-password', { 
+                token: req.params.token,
+                username: resetInfo.username
+            });
+        } else {
+            res.status(400).render('error', { 
+                message: 'Invalid or expired reset token'
+            });
+        }
+    } catch (error) {
+        console.error('Reset form error:', error);
+        res.status(500).render('error', { 
+            message: 'Error loading reset form'
+        });
+    }
+});
+
+// Process password reset
+app.post('/reset-password/:token', async (req, res) => {
+    try {
+        const { password, confirmPassword } = req.body;
+        const { token } = req.params;
+
+        if (password !== confirmPassword) {
+            return res.status(400).json({ 
+                error: 'Passwords do not match'
+            });
+        }
+
+        const success = await userOperations.resetPassword(token, password);
+        if (success) {
+            res.json({ 
+                message: 'Password reset successful'
+            });
+        } else {
+            res.status(400).json({ 
+                error: 'Unable to reset password'
+            });
+        }
+    } catch (error) {
+        console.error('Password reset error:', error);
+        res.status(500).json({ 
+            error: 'Error resetting password'
+        });
     }
 });
 
