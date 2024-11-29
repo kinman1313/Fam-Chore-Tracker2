@@ -1,178 +1,162 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="/styles.css">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parent Dashboard - Family Chore Tracker</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 </head>
-<body>
-    <h1>Admin Dashboard</h1>
-    
-    <div id="status-message" class="status-message"></div>
-    
-    <!-- Add Chore Form -->
-    <div class="add-chore-form">
-        <h2>Add New Chore</h2>
-        <form id="addChoreForm" onsubmit="return handleAddChore(event)">
-            <div class="form-group">
-                <input type="text" 
-                       name="choreName" 
-                       placeholder="Chore Name" 
-                       required
-                       minlength="3">
-                <input type="text" 
-                       name="assignedTo" 
-                       placeholder="Assign To" 
-                       required
-                       minlength="2">
-            </div>
-            <button type="submit">Add Chore</button>
-        </form>
-    </div>
-
-    <!-- Chores List -->
-    <div class="chores-list">
-        <div class="list-header">
-            <h2>Current Chores</h2>
-            <div class="filters">
-                <select id="statusFilter" onchange="filterChores()">
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="completed">Completed</option>
-                </select>
-                <input type="text" 
-                       id="searchInput" 
-                       placeholder="Search chores..."
-                       oninput="filterChores()">
+<body class="dashboard-body">
+    <!-- Navigation Bar -->
+    <nav class="dashboard-nav">
+        <div class="nav-content">
+            <h1>Family Chore Tracker</h1>
+            <div class="nav-actions">
+                <!-- Notifications -->
+                <div class="notifications-wrapper">
+                    <button id="notifications-toggle" class="notifications-btn">
+                        <i class="fas fa-bell"></i>
+                        <span id="notifications-badge" class="notifications-badge"></span>
+                    </button>
+                    <div id="notifications-container" class="notifications-container"></div>
+                </div>
+                
+                <!-- User Menu -->
+                <div class="user-menu">
+                    <span class="username">Welcome, <%= username %></span>
+                    <a href="/logout" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
             </div>
         </div>
+    </nav>
 
-        <div id="choresList">
-            <% if (chores.length === 0) { %>
-                <div class="empty-state">
-                    <p>No chores added yet! Add your first chore above.</p>
-                </div>
-            <% } else { %>
-                <% chores.forEach(function(chore) { %>
-                    <div class="chore-item" 
-                         data-id="<%= chore.id %>"
-                         data-name="<%= chore.name.toLowerCase() %>"
-                         data-status="<%= chore.completed ? 'completed' : 'pending' %>">
-                        <div class="chore-content">
-                            <span class="chore-name"><%= chore.name %></span>
-                            <span class="assigned-to">Assigned to: <%= chore.assignedTo %></span>
-                            <span class="completion-status <%= chore.completed ? 'completed' : 'pending' %>">
-                                <%= chore.completed ? 'Completed' : 'Pending' %>
-                            </span>
-                            <% if (chore.completedAt) { %>
-                                <span class="completed-at">
-                                    Completed: <%= new Date(chore.completedAt).toLocaleString() %>
-                                </span>
-                            <% } %>
+    <div class="dashboard-container">
+        <!-- Quick Actions Section -->
+        <section class="quick-actions">
+            <button class="action-btn" onclick="openAddChoreModal()">
+                <i class="fas fa-plus"></i> Add Chore
+            </button>
+            <button class="action-btn" onclick="openRewardsModal()">
+                <i class="fas fa-gift"></i> Manage Rewards
+            </button>
+            <button class="action-btn" onclick="openFamilySettingsModal()">
+                <i class="fas fa-users"></i> Family Settings
+            </button>
+        </section>
+
+        <!-- Family Overview Section -->
+        <section class="family-overview">
+            <h2>Family Overview</h2>
+            <div class="family-members">
+                <% children.forEach(child => { %>
+                    <div class="family-member-card">
+                        <div class="member-avatar">
+                            <img src="<%= child.avatar || '/images/default-avatar.png' %>" alt="<%= child.username %>">
                         </div>
-                        <div class="chore-actions">
-                            <button class="delete-chore" onclick="deleteChore(<%= chore.id %>)">
-                                Delete
-                            </button>
+                        <div class="member-info">
+                            <h3><%= child.username %></h3>
+                            <p><i class="fas fa-star"></i> <%= child.points || 0 %> points</p>
+                            <p><i class="fas fa-tasks"></i> <%= child.pendingChores || 0 %> pending</p>
                         </div>
                     </div>
                 <% }); %>
-            <% } %>
-        </div>
+            </div>
+        </section>
+
+        <!-- Chores Overview Section -->
+        <section class="chores-overview">
+            <div class="section-header">
+                <h2>Chores Overview</h2>
+                <div class="filter-controls">
+                    <select id="filterStatus" class="filter-select">
+                        <option value="all">All Chores</option>
+                        <option value="pending">Pending</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                    <select id="filterAssignee" class="filter-select">
+                        <option value="all">All Children</option>
+                        <% children.forEach(child => { %>
+                            <option value="<%= child.id %>"><%= child.username %></option>
+                        <% }); %>
+                    </select>
+                </div>
+            </div>
+
+            <div class="chores-grid">
+                <% chores.forEach(chore => { %>
+                    <div class="chore-card <%= chore.completed ? 'completed' : '' %>" 
+                         data-id="<%= chore.id %>"
+                         data-assignee="<%= chore.assigned_to %>">
+                        <div class="chore-header">
+                            <h3><%= chore.name %></h3>
+                            <div class="chore-actions">
+                                <button class="verify-btn" onclick="verifyChore(<%= chore.id %>)" 
+                                        <%= chore.completed ? '' : 'disabled' %>>
+                                    <i class="fas fa-check-double"></i>
+                                </button>
+                                <button class="delete-btn" onclick="deleteChore(<%= chore.id %>)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chore-details">
+                            <p><i class="fas fa-user"></i> Assigned to: <%= chore.assigned_to_name %></p>
+                            <p><i class="fas fa-calendar"></i> Due: <%= moment(chore.due_date).format('MMM D, YYYY') %></p>
+                            <% if (chore.completed) { %>
+                                <p class="completion-info">
+                                    <i class="fas fa-check-circle"></i> 
+                                    Completed: <%= moment(chore.completed_at).format('MMM D, YYYY') %>
+                                </p>
+                            <% } %>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        </section>
+
+        <!-- Statistics Section -->
+        <section class="statistics-section">
+            <div class="section-header">
+                <h2>Statistics</h2>
+                <select id="timeframe-selector" class="timeframe-selector">
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="year">This Year</option>
+                </select>
+            </div>
+            
+            <div id="statistics-container">
+                <!-- Stats will be inserted here by StatisticsManager -->
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Points History</h3>
+                    <canvas id="points-chart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>Completed Chores</h3>
+                    <canvas id="chores-chart"></canvas>
+                </div>
+            </div>
+        </section>
     </div>
 
-    <a href="/logout" class="logout-btn">Logout</a>
+    <!-- Modals -->
+    <%- include('partials/add-chore-modal') %>
+    <%- include('partials/rewards-modal') %>
+    <%- include('partials/family-settings-modal') %>
 
-    <script>
-    function showMessage(message, type = 'success') {
-        const statusDiv = document.getElementById('status-message');
-        statusDiv.className = `status-message ${type}`;
-        statusDiv.textContent = message;
-        statusDiv.style.display = 'block';
-        
-        setTimeout(() => {
-            statusDiv.style.opacity = '0';
-            setTimeout(() => {
-                statusDiv.style.display = 'none';
-                statusDiv.style.opacity = '1';
-            }, 300);
-        }, 3000);
-    }
-
-    function handleAddChore(event) {
-        event.preventDefault();
-        const form = event.target;
-        const formData = new FormData(form);
-        
-        fetch('/add-chore', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(formData)
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Failed to add chore');
-            showMessage('Chore added successfully! 🎉');
-            location.reload();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('Error adding chore', 'error');
-        });
-        
-        return false;
-    }
-
-    function deleteChore(choreId) {
-        const choreElement = document.querySelector(`[data-id="${choreId}"]`);
-        
-        if (confirm('Are you sure you want to delete this chore?')) {
-            choreElement.classList.add('loading');
-            
-            fetch(`/delete-chore/${choreId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    choreElement.style.animation = 'slideOut 0.3s ease forwards';
-                    setTimeout(() => {
-                        choreElement.remove();
-                        showMessage('Chore deleted successfully');
-                        if (document.querySelectorAll('.chore-item').length === 0) {
-                            location.reload(); // Show empty state
-                        }
-                    }, 300);
-                } else {
-                    throw new Error('Failed to delete chore');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Error deleting chore', 'error');
-                choreElement.classList.remove('loading');
-            });
-        }
-    }
-
-    function filterChores() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const statusFilter = document.getElementById('statusFilter').value;
-        const chores = document.querySelectorAll('.chore-item');
-        
-        chores.forEach(chore => {
-            const name = chore.dataset.name;
-            const status = chore.dataset.status;
-            const matchesSearch = name.includes(searchTerm);
-            const matchesStatus = statusFilter === 'all' || status === statusFilter;
-            
-            chore.style.display = matchesSearch && matchesStatus ? 'flex' : 'none';
-        });
-    }
-    </script>
+    <!-- Scripts -->
+    <script src="/js/notifications.js"></script>
+    <script src="/js/statistics.js"></script>
+    <script src="/js/admin-dashboard.js"></script>
 </body>
 </html>
