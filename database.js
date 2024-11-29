@@ -13,42 +13,71 @@ const db = new sqlite3.Database(path.join(__dirname, 'chore_tracker.db'), (err) 
 
 // Initialize database tables
 function initializeDatabase() {
-    db.serialize(() => {
-        // Users table
-        db.run(`
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                role TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
+    return new Promise((resolve, reject) => {
+        db.serialize(() => {
+            try {
+                // Users table
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT UNIQUE NOT NULL,
+                        password TEXT NOT NULL,
+                        role TEXT NOT NULL,
+                        points INTEGER DEFAULT 0,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
 
-        // Chores table
-        db.run(`
-            CREATE TABLE IF NOT EXISTS chores (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                assigned_to INTEGER NOT NULL,
-                created_by INTEGER NOT NULL,
-                completed BOOLEAN DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                completed_at DATETIME,
-                FOREIGN KEY (assigned_to) REFERENCES users(id),
-                FOREIGN KEY (created_by) REFERENCES users(id)
-            )
-        `);
+                // Chores table
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS chores (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        assigned_to INTEGER NOT NULL,
+                        created_by INTEGER NOT NULL,
+                        points INTEGER DEFAULT 0,
+                        completed BOOLEAN DEFAULT 0,
+                        verified BOOLEAN DEFAULT 0,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        completed_at DATETIME,
+                        FOREIGN KEY (assigned_to) REFERENCES users(id),
+                        FOREIGN KEY (created_by) REFERENCES users(id)
+                    )
+                `);
 
-        // Check if we need to create default users
-        db.get("SELECT COUNT(*) as count FROM users", [], (err, row) => {
-            if (err) {
-                console.error('Error checking users:', err);
-                return;
-            }
+                // Password reset table
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS password_resets (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        reset_token TEXT NOT NULL,
+                        expires_at DATETIME NOT NULL,
+                        used BOOLEAN DEFAULT 0,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id)
+                    )
+                `);
 
-            if (row.count === 0) {
-                createDefaultUsers();
+                // Check for default users
+                db.get("SELECT COUNT(*) as count FROM users", [], async (err, row) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+
+                    if (row.count === 0) {
+                        try {
+                            await createDefaultUsers();
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        }
+                    } else {
+                        resolve();
+                    }
+                });
+            } catch (error) {
+                reject(error);
             }
         });
     });
@@ -56,24 +85,26 @@ function initializeDatabase() {
 
 // Create default users
 async function createDefaultUsers() {
+    const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10;
     const defaultUsers = [
-        { username: 'parent', password: 'parent123', role: 'parent' },
-        { username: 'child', password: 'child123', role: 'child' },
-        { username: 'bodhi', password: 'bodhi123', role: 'child' },
-        { username: 'holden', password: 'holden123', role: 'child' },
-        { username: 'Kelli', password: 'kelli123', role: 'parent' },
-        { username: 'Kevin', password: 'kevin123', role: 'parent' }
+        { username: 'Kelli', password: process.env.KELLI_PASSWORD || 'kelli123', role: 'parent' },
+        { username: 'Kevin', password: process.env.KEVIN_PASSWORD || 'kevin123', role: 'parent' },
+        { username: 'Bodhi', password: process.env.BODHI_PASSWORD || 'bodhi123', role: 'child' },
+        { username: 'Holden', password: process.env.HOLDEN_PASSWORD || 'holden123', role: 'child' }
     ];
 
     for (const user of defaultUsers) {
-        const hashedPassword = await bcrypt.hash(user.password, 10);
-        db.run(
-            'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-            [user.username, hashedPassword, user.role],
-            (err) => {
-                if (err) console.error('Error creating default user:', err);
-            }
-        );
+        const hashedPassword = await bcrypt.hash(user.password, saltRounds);
+        await new Promise((resolve, reject) => {
+            db.run(
+                'INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)',
+                [user.username, hashedPassword, user.role],
+                (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
     }
 }
 
@@ -113,13 +144,15 @@ const userOperations = {
     updatePassword(username, newPassword) {
         return new Promise(async (resolve, reject) => {
             try {
-                const hashedPassword = await bcrypt.hash(newPassword, 10);
+                const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10;
+                const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+                
                 db.run(
                     'UPDATE users SET password = ? WHERE LOWER(username) = LOWER(?)',
                     [hashedPassword, username],
                     function(err) {
                         if (err) reject(err);
-                        resolve(this.changes > 0);
+                        else resolve(this.changes > 0);
                     }
                 );
             } catch (err) {
@@ -138,6 +171,90 @@ const userOperations = {
                     resolve(rows);
                 }
             );
+        });
+    },
+
+    createPasswordReset(userId) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                // Generate a secure random token
+                const resetToken = require('crypto').randomBytes(32).toString('hex');
+                // Token expires in 1 hour
+                const expiresAt = new Date(Date.now() + 3600000).toISOString();
+
+                db.run(
+                    `INSERT INTO password_resets (user_id, reset_token, expires_at)
+                     VALUES (?, ?, ?)`,
+                    [userId, resetToken, expiresAt],
+                    function(err) {
+                        if (err) reject(err);
+                        else resolve(resetToken);
+                    }
+                );
+            } catch (err) {
+                reject(err);
+            }
+        });
+    },
+
+    verifyResetToken(token) {
+        return new Promise((resolve, reject) => {
+            db.get(
+                `SELECT pr.*, u.username 
+                 FROM password_resets pr
+                 JOIN users u ON pr.user_id = u.id
+                 WHERE pr.reset_token = ? 
+                 AND pr.expires_at > datetime('now')
+                 AND pr.used = 0`,
+                [token],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+    },
+
+    resetPassword(token, newPassword) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const resetInfo = await this.verifyResetToken(token);
+                if (!resetInfo) {
+                    reject(new Error('Invalid or expired reset token'));
+                    return;
+                }
+
+                const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+                db.serialize(() => {
+                    // Start transaction
+                    db.run('BEGIN TRANSACTION');
+
+                    // Update password
+                    db.run(
+                        'UPDATE users SET password = ? WHERE id = ?',
+                        [hashedPassword, resetInfo.user_id]
+                    );
+
+                    // Mark reset token as used
+                    db.run(
+                        'UPDATE password_resets SET used = 1 WHERE reset_token = ?',
+                        [token]
+                    );
+
+                    // Commit transaction
+                    db.run('COMMIT', (err) => {
+                        if (err) {
+                            db.run('ROLLBACK');
+                            reject(err);
+                        } else {
+                            resolve(true);
+                        }
+                    });
+                });
+            } catch (err) {
+                reject(err);
+            }
         });
     }
 };
@@ -232,6 +349,32 @@ const choreOperations = {
         });
     }
 };
+
+// Add migration flag check
+if (process.argv.includes('--migrate')) {
+    initializeDatabase()
+        .then(() => {
+            console.log('Database migrations completed');
+            process.exit(0);
+        })
+        .catch(err => {
+            console.error('Migration failed:', err);
+            process.exit(1);
+        });
+}
+
+// Add seed flag check
+if (process.argv.includes('--seed')) {
+    createDefaultUsers()
+        .then(() => {
+            console.log('Database seeding completed');
+            process.exit(0);
+        })
+        .catch(err => {
+            console.error('Seeding failed:', err);
+            process.exit(1);
+        });
+}
 
 module.exports = {
     db,
