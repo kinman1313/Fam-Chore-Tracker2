@@ -96,8 +96,9 @@ app.post('/login', async (req, res) => {
         console.log('Login attempt for:', username); // Debug log
 
         const user = await userOperations.findByUsername(username);
+        console.log('User found:', user ? 'Yes' : 'No'); // Debug log
+
         if (!user) {
-            console.log('User not found'); // Debug log
             return res.render('login', { 
                 error: 'Invalid username or password',
                 username 
@@ -114,20 +115,19 @@ app.post('/login', async (req, res) => {
             });
         }
 
-        // Set user session
+        // Set session data
         req.session.userId = user.id;
         req.session.userRole = user.role;
         req.session.username = user.username;
-
-        console.log('User role:', user.role); // Debug log
+        console.log('Session set:', req.session); // Debug log
 
         // Redirect based on role
         if (user.role === 'parent') {
             console.log('Redirecting to parent dashboard'); // Debug log
-            res.redirect('/parent-dashboard'); // Changed from /admin
+            res.redirect('/parent-dashboard');
         } else {
             console.log('Redirecting to child dashboard'); // Debug log
-            res.redirect('/child-dashboard'); // Changed from /dashboard
+            res.redirect('/child-dashboard');
         }
 
     } catch (error) {
@@ -698,4 +698,20 @@ app.use((req, res) => {
         message: 'Page not found',
         error: { status: 404 }
     });
+});
+
+// Temporary test route - REMOVE AFTER TESTING
+app.get('/test-db', async (req, res) => {
+    try {
+        const users = await new Promise((resolve, reject) => {
+            db.all('SELECT username, role FROM users', [], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+        res.json({ users });
+    } catch (error) {
+        console.error('Database test error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });

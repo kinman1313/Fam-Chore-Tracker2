@@ -144,14 +144,19 @@ async function createDefaultUsers() {
 
 // User operations
 const userOperations = {
-    findByUsername(username) {
+    findByUsername: (username) => {
         return new Promise((resolve, reject) => {
             db.get(
-                'SELECT * FROM users WHERE LOWER(username) = LOWER(?)',
+                'SELECT * FROM users WHERE username = ?',
                 [username],
                 (err, row) => {
-                    if (err) reject(err);
-                    resolve(row);
+                    if (err) {
+                        console.error('Database error:', err);
+                        reject(err);
+                    } else {
+                        console.log('Found user:', row ? 'Yes' : 'No');
+                        resolve(row);
+                    }
                 }
             );
         });
