@@ -9,7 +9,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint .",
     "migrate": "node database.js --migrate",
-    "seed": "node database.js --seed"
+    "seed": "node database.js --seed",
+    "build": "npm rebuild bcrypt --build-from-source"
   },
   "keywords": [],
   "author": "",
