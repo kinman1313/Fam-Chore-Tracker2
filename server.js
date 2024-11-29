@@ -183,63 +183,30 @@ app.get('/reset-password', (req, res) => {
 
 app.post('/reset-password', async (req, res) => {
     try {
-        const { username, currentPassword, newPassword, confirmPassword } = req.body;
-
-        // Server-side validation
-        if (!username || !currentPassword || !newPassword || !confirmPassword) {
-            return res.render('reset-password', {
-                error: 'All fields are required',
-                username
-            });
-        }
-
-        if (newPassword.length < 6) {
-            return res.render('reset-password', {
-                error: 'New password must be at least 6 characters long',
-                username
-            });
-        }
+        const { username, newPassword, confirmPassword } = req.body;
 
         if (newPassword !== confirmPassword) {
             return res.render('reset-password', {
-                error: 'New passwords do not match',
+                error: 'Passwords do not match',
                 username
             });
         }
 
-        // Find user and verify current password
         const user = await userOperations.findByUsername(username);
         if (!user) {
             return res.render('reset-password', {
-                error: 'Invalid username or current password',
+                error: 'Username not found',
                 username
             });
         }
 
-        // Verify current password
-        const validPassword = await bcrypt.compare(currentPassword, user.password);
-        if (!validPassword) {
-            return res.render('reset-password', {
-                error: 'Invalid username or current password',
-                username
-            });
-        }
-
-        // Ensure new password is different
-        if (currentPassword === newPassword) {
-            return res.render('reset-password', {
-                error: 'New password must be different from current password',
-                username
-            });
-        }
-
-        // Update password
-        await userOperations.updatePassword(username, newPassword);
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await userOperations.updatePassword(username, hashedPassword);
 
         // Redirect to login with success message
         req.session.flashMessage = {
             type: 'success',
-            text: 'Password successfully updated. Please login with your new password.'
+            text: 'Password successfully reset. Please login with your new password.'
         };
         res.redirect('/login');
 
