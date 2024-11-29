@@ -305,6 +305,54 @@ app.get('/check-session', (req, res) => {
     }
 });
 
+// Reset password page
+app.get('/reset-password', (req, res) => {
+    res.render('reset-password', { error: null, success: null });
+});
+
+// Handle password reset
+app.post('/reset-password', (req, res) => {
+    const { username, currentPassword, newPassword, confirmPassword } = req.body;
+    
+    // Basic validation
+    if (newPassword !== confirmPassword) {
+        return res.render('reset-password', {
+            error: 'New passwords do not match',
+            username
+        });
+    }
+    
+    if (newPassword.length < 6) {
+        return res.render('reset-password', {
+            error: 'New password must be at least 6 characters long',
+            username
+        });
+    }
+    
+    // Find user
+    const user = users.find(u => 
+        u.username.toLowerCase() === username.toLowerCase() && 
+        u.password === currentPassword
+    );
+    
+    if (!user) {
+        return res.render('reset-password', {
+            error: 'Invalid username or current password',
+            username
+        });
+    }
+    
+    // Update password
+    user.password = newPassword;
+    console.log('Password updated for user:', username);
+    
+    // Render login page with success message
+    res.render('login', {
+        success: 'Password updated successfully! Please log in with your new password.',
+        username
+    });
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

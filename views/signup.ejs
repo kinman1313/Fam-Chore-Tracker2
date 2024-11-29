@@ -16,7 +16,7 @@
             </div>
         <% } %>
         
-        <form action="/signup" method="POST" class="signup-form">
+        <form action="/signup" method="POST" class="signup-form" id="signupForm">
             <div class="form-group">
                 <input 
                     type="text" 
@@ -25,7 +25,10 @@
                     required
                     minlength="3"
                     pattern="[a-zA-Z0-9]+"
-                    title="Username must be at least 3 characters long and contain only letters and numbers">
+                    title="Username must be at least 3 characters long and contain only letters and numbers"
+                    value="<%= typeof username !== 'undefined' ? username : '' %>"
+                    class="form-input">
+                <small class="input-help">Username must be at least 3 characters long, letters and numbers only</small>
             </div>
 
             <div class="form-group">
@@ -35,18 +38,25 @@
                     placeholder="Password" 
                     required
                     minlength="6"
-                    title="Password must be at least 6 characters long">
+                    class="form-input"
+                    id="password">
+                <small class="input-help">Password must be at least 6 characters long</small>
+                <div class="password-strength" id="passwordStrength"></div>
             </div>
 
             <div class="form-group">
-                <select name="role" required class="role-select">
+                <select name="role" required class="role-select form-input">
                     <option value="" disabled selected>Select your role</option>
                     <option value="parent">Parent</option>
                     <option value="child">Child</option>
                 </select>
+                <small class="input-help">Choose your role in the family</small>
             </div>
 
-            <button type="submit" class="submit-btn">Create Account</button>
+            <button type="submit" class="submit-btn" id="submitBtn" disabled>
+                <span class="btn-text">Create Account</span>
+                <span class="btn-loader"></span>
+            </button>
         </form>
         
         <div class="auth-links">
@@ -55,27 +65,56 @@
     </div>
 
     <script>
-    document.querySelector('form').addEventListener('submit', function(e) {
-        const password = document.querySelector('input[name="password"]').value;
-        const username = document.querySelector('input[name="username"]').value;
-        
-        if (password.length < 6) {
-            e.preventDefault();
-            alert('Password must be at least 6 characters long');
-            return;
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('signupForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const passwordInput = document.getElementById('password');
+        const passwordStrength = document.getElementById('passwordStrength');
+        let formValid = false;
+
+        function validateForm() {
+            const username = document.querySelector('input[name="username"]').value;
+            const password = passwordInput.value;
+            const role = document.querySelector('select[name="role"]').value;
+            
+            const isUsernameValid = username.length >= 3 && /^[a-zA-Z0-9]+$/.test(username);
+            const isPasswordValid = password.length >= 6;
+            const isRoleValid = role !== '';
+
+            formValid = isUsernameValid && isPasswordValid && isRoleValid;
+            submitBtn.disabled = !formValid;
         }
-        
-        if (username.length < 3) {
-            e.preventDefault();
-            alert('Username must be at least 3 characters long');
-            return;
+
+        function checkPasswordStrength(password) {
+            let strength = 0;
+            if (password.length >= 6) strength++;
+            if (password.length >= 8) strength++;
+            if (/[A-Z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^A-Za-z0-9]/.test(password)) strength++;
+
+            const strengthText = ['Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+            const strengthClass = ['weak', 'fair', 'good', 'strong', 'very-strong'];
+
+            passwordStrength.textContent = strengthText[strength - 1] || '';
+            passwordStrength.className = 'password-strength ' + (strengthClass[strength - 1] || '');
         }
+
+        form.addEventListener('input', validateForm);
         
-        if (!/^[a-zA-Z0-9]+$/.test(username)) {
-            e.preventDefault();
-            alert('Username can only contain letters and numbers');
-            return;
-        }
+        passwordInput.addEventListener('input', function() {
+            checkPasswordStrength(this.value);
+        });
+
+        form.addEventListener('submit', function(e) {
+            if (!formValid) {
+                e.preventDefault();
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.classList.add('loading');
+        });
     });
     </script>
 </body>
