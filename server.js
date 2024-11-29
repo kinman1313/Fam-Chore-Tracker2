@@ -96,10 +96,17 @@ app.get('/signup', (req, res) => {
 
 app.post('/signup', (req, res) => {
     const { username, password, role } = req.body;
+    console.log('Signup attempt:', { username, password, role }); // Debug log
+    
     if (users.find(user => user.username === username)) {
-        return res.send('User already exists');
+        return res.render('signup', { error: 'Username already exists' });
     }
-    users.push({ username, password, role });
+    
+    const newUser = { username, password, role };
+    users.push(newUser);
+    console.log('New user created:', newUser); // Debug log
+    console.log('Current users:', users); // Debug log
+    
     res.redirect('/login');
 });
 
@@ -109,11 +116,19 @@ app.get('/login', (req, res) => {
 
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
+    console.log('Login attempt:', { username, password }); // Debug log
+    
+    // Find user
     const user = users.find(u => u.username === username && u.password === password);
+    console.log('Found user:', user); // Debug log
+    
     if (!user) {
-        return res.send('Invalid credentials');
+        console.log('Invalid credentials for:', username); // Debug log
+        return res.render('login', { error: 'Invalid username or password' });
     }
+    
     req.session.user = user;
+    console.log('Session created:', req.session.user); // Debug log
     res.redirect('/dashboard');
 });
 

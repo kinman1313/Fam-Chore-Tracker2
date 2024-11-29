@@ -3,82 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
-            text-align: center;
-        }
-        .container h1 {
-            margin-bottom: 20px;
-        }
-        .container input, .container button, .container select {
-            display: block;
-            width: 100%;
-            margin-bottom: 10px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .container button {
-            background: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .container button:hover {
-            background: #0056b3;
-        }
-    </style>
+    <title>Sign Up - Family Chore Tracker</title>
+    <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Sign Up</h1>
-        <form action="/signup" method="POST" id="signupForm">
-            <input type="text" name="username" placeholder="Username" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <select name="role" required>
-                <option value="">Select Role</option>
-                <option value="parent">Parent</option>
-                <option value="child">Child</option>
-            </select>
-            <button type="submit">Sign Up</button>
+    <div class="login-container">
+        <h1>Create Account</h1>
+        
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="error-message">
+                <%= error %>
+            </div>
+        <% } %>
+        
+        <form action="/signup" method="POST" class="signup-form">
+            <div class="form-group">
+                <input 
+                    type="text" 
+                    name="username" 
+                    placeholder="Username" 
+                    required
+                    minlength="3"
+                    pattern="[a-zA-Z0-9]+"
+                    title="Username must be at least 3 characters long and contain only letters and numbers">
+            </div>
+
+            <div class="form-group">
+                <input 
+                    type="password" 
+                    name="password" 
+                    placeholder="Password" 
+                    required
+                    minlength="6"
+                    title="Password must be at least 6 characters long">
+            </div>
+
+            <div class="form-group">
+                <select name="role" required class="role-select">
+                    <option value="" disabled selected>Select your role</option>
+                    <option value="parent">Parent</option>
+                    <option value="child">Child</option>
+                </select>
+            </div>
+
+            <button type="submit" class="submit-btn">Create Account</button>
         </form>
-        <a href="/login">Login</a>
+        
+        <div class="auth-links">
+            <p>Already have an account? <a href="/login">Login here</a></p>
+        </div>
     </div>
 
     <script>
-        document.getElementById('signupForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const formData = new FormData(this);
-            fetch('/signup', {
-                method: 'POST',
-                body: new URLSearchParams(formData)
-            })
-            .then(response => response.text())
-            .then(data => {
-                if (data.includes('User already exists')) {
-                    alert('User already exists');
-                } else {
-                    window.location.href = '/login';
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        });
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const password = document.querySelector('input[name="password"]').value;
+        const username = document.querySelector('input[name="username"]').value;
+        
+        if (password.length < 6) {
+            e.preventDefault();
+            alert('Password must be at least 6 characters long');
+            return;
+        }
+        
+        if (username.length < 3) {
+            e.preventDefault();
+            alert('Username must be at least 3 characters long');
+            return;
+        }
+        
+        if (!/^[a-zA-Z0-9]+$/.test(username)) {
+            e.preventDefault();
+            alert('Username can only contain letters and numbers');
+            return;
+        }
+    });
     </script>
 </body>
 </html>
