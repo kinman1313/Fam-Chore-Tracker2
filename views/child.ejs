@@ -118,11 +118,12 @@
                                 <% } %>
                             </div>
                             <button 
-                                onclick="toggleChore(<%= chore.id %>)" 
+                                onclick="toggleChore(<%= chore.id %>)"
                                 class="toggle-btn <%= chore.completed ? 'completed' : '' %>"
                                 <%= chore.verified ? 'disabled' : '' %>
                                 title="<%= chore.completed ? 'Mark as incomplete' : 'Mark as complete' %>">
                                 <i class="fas <%= chore.completed ? 'fa-times-circle' : 'fa-check-circle' %>"></i>
+                            </button>
                             </button>
                         </div>
                     <% }); %>
@@ -146,7 +147,7 @@
                             <%= reward.pointsCost %> points
                         </div>
                         <button 
-                            onclick="redeemReward(<%= reward.id %>)"
+                            onclick="redeemReward('<%= reward.id %>')"
                             class="redeem-btn"
                             <%= userPoints >= reward.pointsCost ? '' : 'disabled' %>>
                             Redeem

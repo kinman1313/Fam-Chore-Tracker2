@@ -5,7 +5,7 @@ const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const bcrypt = require('bcrypt');
-const { initializeDatabase, userOperations, choreOperations } = require('./database');
+const { initializeDatabase, userOperations, choreOperations, rewardOperations } = require('./database');
 const multer = require('multer');
 const path = require('path');
 const moment = require('moment');
@@ -599,4 +599,30 @@ app.use((err, req, res, next) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+});
+
+// Add these routes if not present
+app.post('/chores/:id/toggle', async (req, res) => {
+    try {
+        const result = await choreOperations.toggleCompletion(
+            req.params.id,
+            req.user.id,
+            req.user.role
+        );
+        res.json({ success: true, ...result });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+app.post('/rewards/:id/redeem', async (req, res) => {
+    try {
+        const result = await rewardOperations.redeem(
+            req.params.id,
+            req.user.id
+        );
+        res.json({ success: true, ...result });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
 });

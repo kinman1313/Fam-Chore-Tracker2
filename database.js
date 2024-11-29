@@ -58,6 +58,40 @@ function initializeDatabase() {
                     )
                 `);
 
+                // Rewards table
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS rewards (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        description TEXT,
+                        pointsCost INTEGER NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
+
+                // Achievements table
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS achievements (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        description TEXT,
+                        icon TEXT NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
+
+                // User achievements table
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS user_achievements (
+                        user_id INTEGER NOT NULL,
+                        achievement_id INTEGER NOT NULL,
+                        earned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (user_id, achievement_id),
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        FOREIGN KEY (achievement_id) REFERENCES achievements(id)
+                    )
+                `);
+
                 // Check for default users
                 db.get("SELECT COUNT(*) as count FROM users", [], async (err, row) => {
                     if (err) {
