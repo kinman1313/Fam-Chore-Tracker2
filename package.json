@@ -5,12 +5,15 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
+    "dev": "concurrently \"nodemon server.js\" \"npm run sass\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "echo 'Build completed'",
     "lint": "eslint .",
     "migrate": "node database.js --migrate",
-    "seed": "node database.js --seed"
+    "seed": "node database.js --seed",
+    "reset-passwords": "node utils/reset-passwords.js",
+    "sass": "sass src/scss/main.scss:public/css/styles.css --watch",
+    "sass:build": "sass src/scss/main.scss:public/css/styles.css --style compressed"
   },
   "keywords": [],
   "author": "",
@@ -29,9 +32,11 @@
   },
   "devDependencies": {
     "@flydotio/dockerfile": "^0.5.9",
-    "nodemon": "^3.1.7",
+    "concurrently": "^9.1.0",
     "eslint": "^8.57.0",
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.7",
+    "sass": "^1.81.0"
   },
   "engines": {
     "node": ">=18.0.0"
