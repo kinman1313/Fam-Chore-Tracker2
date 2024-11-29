@@ -610,6 +610,8 @@ app.post('/reset-password/:token', async (req, res) => {
 // TEMPORARY ROUTE - REMOVE AFTER USE
 app.get('/temp-reset-passwords', async (req, res) => {
     try {
+        console.log('Starting password reset process...');
+        
         const defaultPasswords = {
             'Kelli': 'kelli123',
             'Kevin': 'kevin123',
@@ -617,24 +619,52 @@ app.get('/temp-reset-passwords', async (req, res) => {
             'Holden': 'holden123'
         };
 
-        for (const [username, password] of Object.entries(defaultPasswords)) {
-            const hashedPassword = await bcrypt.hash(password, 10);
-            await new Promise((resolve, reject) => {
-                db.run(
-                    'UPDATE users SET password = ? WHERE username = ?',
-                    [hashedPassword, username],
-                    function(err) {
-                        if (err) reject(err);
-                        else resolve();
-                    }
-                );
+        // First verify database connection
+        await new Promise((resolve, reject) => {
+            db.get('SELECT COUNT(*) as count FROM users', [], (err, row) => {
+                if (err) {
+                    console.error('Database check error:', err);
+                    reject(err);
+                } else {
+                    console.log(`Found ${row.count} users in database`);
+                    resolve();
+                }
             });
+        });
+
+        // Reset each password
+        for (const [username, password] of Object.entries(defaultPasswords)) {
+            try {
+                console.log(`Processing user: ${username}`);
+                const hashedPassword = await bcrypt.hash(password, 10);
+                
+                await new Promise((resolve, reject) => {
+                    db.run(
+                        'UPDATE users SET password = ? WHERE username = ?',
+                        [hashedPassword, username],
+                        function(err) {
+                            if (err) {
+                                console.error(`Error updating ${username}:`, err);
+                                reject(err);
+                            } else {
+                                console.log(`Updated password for ${username} (${this.changes} rows affected)`);
+                                resolve();
+                            }
+                        }
+                    );
+                });
+            } catch (userError) {
+                console.error(`Failed to process user ${username}:`, userError);
+                throw userError;
+            }
         }
 
-        res.send('Passwords reset successfully');
+        console.log('Password reset completed successfully');
+        res.send('Passwords reset successfully. Check server logs for details.');
+
     } catch (error) {
-        console.error('Password reset error:', error);
-        res.status(500).send('Error resetting passwords');
+        console.error('Password reset failed:', error);
+        res.status(500).send(`Error resetting passwords: ${error.message}`);
     }
 });
 
