@@ -93,12 +93,11 @@ app.get('/login', (req, res) => {
 app.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        console.log('Login attempt for username:', username); // Debug log
+        console.log('Login attempt for:', username); // Debug log
 
         const user = await userOperations.findByUsername(username);
-        console.log('User found:', user ? 'Yes' : 'No'); // Debug log
-
         if (!user) {
+            console.log('User not found'); // Debug log
             return res.render('login', { 
                 error: 'Invalid username or password',
                 username 
@@ -120,15 +119,19 @@ app.post('/login', async (req, res) => {
         req.session.userRole = user.role;
         req.session.username = user.username;
 
+        console.log('User role:', user.role); // Debug log
+
         // Redirect based on role
         if (user.role === 'parent') {
-            res.redirect('/admin');
+            console.log('Redirecting to parent dashboard'); // Debug log
+            res.redirect('/parent-dashboard'); // Changed from /admin
         } else {
-            res.redirect('/dashboard');
+            console.log('Redirecting to child dashboard'); // Debug log
+            res.redirect('/child-dashboard'); // Changed from /dashboard
         }
 
     } catch (error) {
-        console.error('Login error:', error); // Error log
+        console.error('Login error:', error);
         res.render('login', { 
             error: 'An error occurred during login',
             username: req.body.username 
@@ -699,4 +702,33 @@ app.post('/rewards/:id/redeem', async (req, res) => {
     } catch (error) {
         res.status(400).json({ success: false, error: error.message });
     }
+});
+
+// Add these route handlers if they don't exist
+app.get('/parent-dashboard', (req, res) => {
+    if (!req.session.userId || req.session.userRole !== 'parent') {
+        return res.redirect('/login');
+    }
+    res.render('admin', { 
+        username: req.session.username,
+        role: req.session.userRole
+    });
+});
+
+app.get('/child-dashboard', (req, res) => {
+    if (!req.session.userId || req.session.userRole !== 'child') {
+        return res.redirect('/login');
+    }
+    res.render('child', { 
+        username: req.session.username,
+        role: req.session.userRole
+    });
+});
+
+// Add a catch-all route for undefined routes
+app.use((req, res) => {
+    res.status(404).render('error', { 
+        message: 'Page not found',
+        error: { status: 404 }
+    });
 });
