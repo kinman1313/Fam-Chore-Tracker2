@@ -96,47 +96,113 @@ app.get('/signup', (req, res) => {
 
 app.post('/signup', (req, res) => {
     const { username, password, role } = req.body;
-    console.log('Signup attempt:', { username, password, role }); // Debug log
     
-    if (users.find(user => user.username === username)) {
-        return res.render('signup', { error: 'Username already exists' });
+    // Validate input
+    if (!username || !password || !role) {
+        return res.render('signup', { 
+            error: 'All fields are required',
+            username
+        });
     }
     
-    const newUser = { username, password, role };
-    users.push(newUser);
-    console.log('New user created:', newUser); // Debug log
-    console.log('Current users:', users); // Debug log
+    // Username validation
+    if (username.length < 3) {
+        return res.render('signup', {
+            error: 'Username must be at least 3 characters long',
+            username
+        });
+    }
     
-    res.redirect('/login');
+    if (!/^[a-zA-Z0-9]+$/.test(username)) {
+        return res.render('signup', {
+            error: 'Username can only contain letters and numbers',
+            username
+        });
+    }
+    
+    // Password validation
+    if (password.length < 6) {
+        return res.render('signup', {
+            error: 'Password must be at least 6 characters long',
+            username
+        });
+    }
+    
+    // Check for existing username (case-insensitive)
+    if (users.some(user => user.username.toLowerCase() === username.toLowerCase())) {
+        return res.render('signup', {
+            error: 'Username already exists',
+            username
+        });
+    }
+    
+    // Create new user
+    const newUser = {
+        username,
+        password,
+        role,
+        createdAt: new Date()
+    };
+    
+    users.push(newUser);
+    console.log('New user created:', {
+        username: newUser.username,
+        role: newUser.role,
+        createdAt: newUser.createdAt
+    });
+    
+    // Redirect to login with success message
+    res.render('login', { 
+        success: 'Account created successfully! Please log in.',
+        username
+    });
 });
 
 app.get('/login', (req, res) => {
-    res.render('login');
+    // If user is already logged in, redirect to dashboard
+    if (req.session.user) {
+        return res.redirect('/dashboard');
+    }
+    res.render('login', { error: null });
 });
 
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
-    console.log('Login attempt:', { username, password }); // Debug log
+    console.log('Login attempt:', { username }); // Don't log passwords
     
-    // Find user
-    const user = users.find(u => u.username === username && u.password === password);
-    console.log('Found user:', user); // Debug log
+    // Convert username to lowercase for case-insensitive comparison
+    const user = users.find(u => 
+        u.username.toLowerCase() === username.toLowerCase() && 
+        u.password === password
+    );
     
     if (!user) {
-        console.log('Invalid credentials for:', username); // Debug log
-        return res.render('login', { error: 'Invalid username or password' });
+        console.log('Login failed for:', username);
+        return res.render('login', { 
+            error: 'Invalid username or password',
+            username // Preserve the username in the form
+        });
     }
     
-    req.session.user = user;
-    console.log('Session created:', req.session.user); // Debug log
+    // Set session
+    req.session.user = {
+        id: Date.now(), // Temporary ID
+        username: user.username,
+        role: user.role
+    };
+    
+    console.log('Login successful for:', username);
     res.redirect('/dashboard');
 });
 
 app.get('/logout', (req, res) => {
+    const username = req.session.user?.username;
     req.session.destroy(err => {
         if (err) {
-            return res.send('Error logging out');
+            console.error('Logout error:', err);
+            return res.status(500).send('Error logging out');
         }
+        console.log('Logout successful for:', username);
         res.redirect('/login');
     });
 });
@@ -221,6 +287,21 @@ app.post('/toggle-chore/:id', authenticateUser, (req, res) => {
         res.json({ success: true, completed: chore.completed });
     } catch (error) {
         res.status(500).json({ error: 'Error updating chore' });
+    }
+});
+
+// Add a route to check session status
+app.get('/check-session', (req, res) => {
+    if (req.session.user) {
+        res.json({
+            loggedIn: true,
+            user: {
+                username: req.session.user.username,
+                role: req.session.user.role
+            }
+        });
+    } else {
+        res.json({ loggedIn: false });
     }
 });
 
