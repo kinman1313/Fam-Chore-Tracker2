@@ -96,11 +96,11 @@
                         <div class="chore-header">
                             <h3><%= chore.name %></h3>
                             <div class="chore-actions">
-                                <button class="verify-btn" onclick="verifyChore(<%= chore.id %>)" 
+                                <button class="verify-btn" onclick="verifyChore('<%= chore.id %>')" 
                                         <%= chore.completed ? '' : 'disabled' %>>
                                     <i class="fas fa-check-double"></i>
                                 </button>
-                                <button class="delete-btn" onclick="deleteChore(<%= chore.id %>)">
+                                <button class="delete-btn" onclick="deleteChore('<%= chore.id %>')">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
