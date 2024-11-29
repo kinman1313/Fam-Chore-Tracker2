@@ -3,160 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parent Dashboard - Family Chore Tracker</title>
+    <title>Parent Dashboard</title>
     <link rel="stylesheet" href="/css/styles.css">
-    <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 </head>
-<body class="dashboard-body">
-    <!-- Navigation Bar -->
-    <nav class="dashboard-nav">
-        <div class="nav-content">
-            <h1>Family Chore Tracker</h1>
-            <div class="nav-actions">
-                <!-- Notifications -->
-                <div class="notifications-wrapper">
-                    <button id="notifications-toggle" class="notifications-btn">
-                        <i class="fas fa-bell"></i>
-                        <span id="notifications-badge" class="notifications-badge"></span>
-                    </button>
-                    <div id="notifications-container" class="notifications-container"></div>
-                </div>
-                
-                <!-- User Menu -->
-                <div class="user-menu">
-                    <span class="username">Welcome, <%= username %></span>
-                    <a href="/logout" class="logout-btn">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
+<body>
     <div class="dashboard-container">
-        <!-- Quick Actions Section -->
-        <section class="quick-actions">
-            <button class="action-btn" onclick="openAddChoreModal()">
-                <i class="fas fa-plus"></i> Add Chore
-            </button>
-            <button class="action-btn" onclick="openRewardsModal()">
-                <i class="fas fa-gift"></i> Manage Rewards
-            </button>
-            <button class="action-btn" onclick="openFamilySettingsModal()">
-                <i class="fas fa-users"></i> Family Settings
-            </button>
-        </section>
-
-        <!-- Family Overview Section -->
-        <section class="family-overview">
-            <h2>Family Overview</h2>
-            <div class="family-members">
-                <% children.forEach(child => { %>
-                    <div class="family-member-card">
-                        <div class="member-avatar">
-                            <img src="<%= child.avatar || '/images/default-avatar.png' %>" alt="<%= child.username %>">
-                        </div>
-                        <div class="member-info">
-                            <h3><%= child.username %></h3>
-                            <p><i class="fas fa-star"></i> <%= child.points || 0 %> points</p>
-                            <p><i class="fas fa-tasks"></i> <%= child.pendingChores || 0 %> pending</p>
-                        </div>
-                    </div>
-                <% }); %>
-            </div>
-        </section>
-
-        <!-- Chores Overview Section -->
-        <section class="chores-overview">
-            <div class="section-header">
-                <h2>Chores Overview</h2>
-                <div class="filter-controls">
-                    <select id="filterStatus" class="filter-select">
-                        <option value="all">All Chores</option>
-                        <option value="pending">Pending</option>
-                        <option value="completed">Completed</option>
-                    </select>
-                    <select id="filterAssignee" class="filter-select">
-                        <option value="all">All Children</option>
-                        <% children.forEach(child => { %>
-                            <option value="<%= child.id %>"><%= child.username %></option>
-                        <% }); %>
-                    </select>
-                </div>
-            </div>
-
-            <div class="chores-grid">
-                <% chores.forEach(chore => { %>
-                    <div class="chore-card <%= chore.completed ? 'completed' : '' %>" 
-                         data-id="<%= chore.id %>"
-                         data-assignee="<%= chore.assigned_to %>">
-                        <div class="chore-header">
-                            <h3><%= chore.name %></h3>
-                            <div class="chore-actions">
-                                <button class="verify-btn" onclick="verifyChore('<%= chore.id %>')" 
-                                        <%= chore.completed ? '' : 'disabled' %>>
-                                    <i class="fas fa-check-double"></i>
-                                </button>
-                                <button class="delete-btn" onclick="deleteChore('<%= chore.id %>')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="chore-details">
-                            <p><i class="fas fa-user"></i> Assigned to: <%= chore.assigned_to_name %></p>
-                            <p><i class="fas fa-calendar"></i> Due: <%= moment(chore.due_date).format('MMM D, YYYY') %></p>
-                            <% if (chore.completed) { %>
-                                <p class="completion-info">
-                                    <i class="fas fa-check-circle"></i> 
-                                    Completed: <%= moment(chore.completed_at).format('MMM D, YYYY') %>
-                                </p>
-                            <% } %>
-                        </div>
-                    </div>
-                <% }); %>
-            </div>
-        </section>
-
-        <!-- Statistics Section -->
-        <section class="statistics-section">
-            <div class="section-header">
-                <h2>Statistics</h2>
-                <select id="timeframe-selector" class="timeframe-selector">
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                    <option value="year">This Year</option>
-                </select>
-            </div>
-            
-            <div id="statistics-container">
-                <!-- Stats will be inserted here by StatisticsManager -->
-            </div>
-            
-            <div class="charts-grid">
-                <div class="chart-container">
-                    <h3>Points History</h3>
-                    <canvas id="points-chart"></canvas>
-                </div>
-                
-                <div class="chart-container">
-                    <h3>Completed Chores</h3>
-                    <canvas id="chores-chart"></canvas>
-                </div>
-            </div>
-        </section>
+        <h1>Welcome, <%= username %></h1>
+        <p>Role: <%= role %></p>
+        
+        <!-- Add your dashboard content here -->
+        
+        <form action="/logout" method="POST">
+            <button type="submit">Logout</button>
+        </form>
     </div>
-
-    <!-- Modals -->
-    <%- include('partials/add-chore-modal') %>
-    <%- include('partials/rewards-modal') %>
-    <%- include('partials/family-settings-modal') %>
-
-    <!-- Scripts -->
-    <script src="/js/notifications.js"></script>
-    <script src="/js/statistics.js"></script>
-    <script src="/js/admin-dashboard.js"></script>
 </body>
 </html>

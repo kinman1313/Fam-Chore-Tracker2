@@ -26,17 +26,21 @@ app.use(cookieParser());
 app.use(session({
     store: new SQLiteStore({
         db: 'sessions.db',
-        dir: './'
+        dir: '.'
     }),
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    secret: 'your-secret-key',
     resave: false,
     saveUninitialized: false,
-    cookie: { 
+    cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
+        maxAge: 24 * 60 * 60 * 1000,
+        sameSite: 'lax'
+    },
+    proxy: true
 }));
+
+app.set('trust proxy', 1);
 
 app.use(express.static('public'));
 app.set('view engine', 'ejs');
@@ -673,9 +677,18 @@ app.post('/rewards/:id/redeem', async (req, res) => {
 
 // Add these route handlers if they don't exist
 app.get('/parent-dashboard', (req, res) => {
+    console.log('Parent dashboard accessed with session:', {
+        userId: req.session.userId,
+        userRole: req.session.userRole,
+        username: req.session.username
+    });
+    
     if (!req.session.userId || req.session.userRole !== 'parent') {
+        console.log('Access denied - no valid session');
         return res.redirect('/login');
     }
+    
+    console.log('Rendering admin view for:', req.session.username);
     res.render('admin', { 
         username: req.session.username,
         role: req.session.userRole
@@ -714,4 +727,11 @@ app.get('/test-db', async (req, res) => {
         console.error('Database test error:', error);
         res.status(500).json({ error: error.message });
     }
+});
+
+// Add a catch-all route for debugging
+app.use((req, res, next) => {
+    console.log('404 - Route not found:', req.url);
+    console.log('Session state:', req.session);
+    res.status(404).send('Route not found');
 });
