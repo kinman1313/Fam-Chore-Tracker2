@@ -175,23 +175,16 @@ const userOperations = {
         });
     },
 
-    updatePassword(username, newPassword) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10;
-                const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-                
-                db.run(
-                    'UPDATE users SET password = ? WHERE LOWER(username) = LOWER(?)',
-                    [hashedPassword, username],
-                    function(err) {
-                        if (err) reject(err);
-                        else resolve(this.changes > 0);
-                    }
-                );
-            } catch (err) {
-                reject(err);
-            }
+    updatePassword(username, hashedPassword) {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE users SET password = ? WHERE username = ?',
+                [hashedPassword, username],
+                function(err) {
+                    if (err) reject(err);
+                    else resolve(this.changes > 0);
+                }
+            );
         });
     },
 

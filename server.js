@@ -5,7 +5,7 @@ const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const bcrypt = require('bcryptjs');
-const { initializeDatabase, userOperations, choreOperations, rewardOperations } = require('./database');
+const { initializeDatabase, userOperations, choreOperations, rewardOperations, db } = require('./database');
 const multer = require('multer');
 const path = require('path');
 const moment = require('moment');
@@ -621,15 +621,15 @@ app.get('/temp-reset-passwords', async (req, res) => {
 
         // First verify database connection
         await new Promise((resolve, reject) => {
-            db.get('SELECT COUNT(*) as count FROM users', [], (err, row) => {
-                if (err) {
+            userOperations.findByUsername('Kevin')
+                .then(user => {
+                    console.log('Database connection verified');
+                    resolve();
+                })
+                .catch(err => {
                     console.error('Database check error:', err);
                     reject(err);
-                } else {
-                    console.log(`Found ${row.count} users in database`);
-                    resolve();
-                }
-            });
+                });
         });
 
         // Reset each password
@@ -639,19 +639,15 @@ app.get('/temp-reset-passwords', async (req, res) => {
                 const hashedPassword = await bcrypt.hash(password, 10);
                 
                 await new Promise((resolve, reject) => {
-                    db.run(
-                        'UPDATE users SET password = ? WHERE username = ?',
-                        [hashedPassword, username],
-                        function(err) {
-                            if (err) {
-                                console.error(`Error updating ${username}:`, err);
-                                reject(err);
-                            } else {
-                                console.log(`Updated password for ${username} (${this.changes} rows affected)`);
-                                resolve();
-                            }
-                        }
-                    );
+                    userOperations.updatePassword(username, hashedPassword)
+                        .then(() => {
+                            console.log(`Updated password for ${username}`);
+                            resolve();
+                        })
+                        .catch(err => {
+                            console.error(`Error updating ${username}:`, err);
+                            reject(err);
+                        });
                 });
             } catch (userError) {
                 console.error(`Failed to process user ${username}:`, userError);
