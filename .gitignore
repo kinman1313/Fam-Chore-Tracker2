@@ -3,3 +3,9 @@ node_modules/
 .DS_Store
 *.log
 public/css/*.css.map
+
+# Add these to .gitignore
+node_modules/
+*.db
+public/styles.css.backup
+.env
