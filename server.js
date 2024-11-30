@@ -16,9 +16,6 @@ const { calculateStats, updateRewardPoints } = require('./statistics');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize database
-const db = initializeDatabase();
-
 // Middleware setup
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
