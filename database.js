@@ -1,14 +1,32 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
 
-// Create a database connection
-const db = new sqlite3.Database(path.join(__dirname, 'chore_tracker.db'), (err) => {
+// Update database path for Render's persistent storage
+const dbPath = process.env.NODE_ENV === 'production'
+    ? '/var/data/chore_tracker.db'
+    : path.join(__dirname, 'chore_tracker.db');
+
+// Ensure the data directory exists in production
+if (process.env.NODE_ENV === 'production') {
+    if (!fs.existsSync('/var/data')) {
+        try {
+            fs.mkdirSync('/var/data', { recursive: true });
+            console.log('Created /var/data directory');
+        } catch (error) {
+            console.error('Error creating data directory:', error);
+        }
+    }
+}
+
+// Create a database connection with the new path
+const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Error connecting to database:', err);
         return;
     }
-    console.log('Connected to SQLite database');
+    console.log('Connected to SQLite database at:', dbPath);
 });
 
 // Initialize database tables
