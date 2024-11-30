@@ -213,3 +213,23 @@ body {
     background: #DCFCE7;
     color: var(--success-color);
 }
+
+/* Browser compatibility fixes */
+* {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+/* Scrollbar styling */
+* {
+    scrollbar-width: thin;
+    -webkit-scrollbar-width: thin;
+}

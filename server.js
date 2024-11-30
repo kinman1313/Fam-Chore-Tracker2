@@ -1013,3 +1013,10 @@ app.use((req, res, next) => {
     
     next();
 });
+
+// Serve static files from the public directory
+app.use('/css', express.static(path.join(__dirname, 'public/css'), {
+    setHeaders: (res, path) => {
+        res.setHeader('Content-Type', 'text/css');
+    }
+}));

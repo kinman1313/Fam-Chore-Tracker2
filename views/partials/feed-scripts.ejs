@@ -1,5 +1,11 @@
 <script src="https://js.giphy.com/v2/sdk.js"></script>
 <script src="/js/feed.js"></script>
 <script>
-    // Your existing Giphy and feed functionality
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize Giphy SDK
+        const giphyKey = '<%= giphyKey %>';
+        const gf = new GiphyFetch(giphyKey);
+
+        // Rest of your Giphy initialization code
+    });
 </script>
