@@ -153,19 +153,47 @@
         });
 
         // Form submission handling
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
             const username = document.getElementById('username').value.trim();
-            const password = passwordInput.value;
+            const password = document.getElementById('password').value;
 
             if (!username || !password) {
-                e.preventDefault();
                 showError('Please fill in all fields');
                 return;
             }
 
-            // Show loading state
+            // Show loading state and start melting animation
             submitButton.disabled = true;
-            submitButton.classList.add('loading');
+            form.classList.add('melting');
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Let the melting animation complete before redirect
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 800);
+                } else {
+                    form.classList.remove('melting');
+                    submitButton.disabled = false;
+                    showError(data.error || 'Login failed');
+                }
+            } catch (error) {
+                form.classList.remove('melting');
+                submitButton.disabled = false;
+                showError('An error occurred');
+            }
         });
 
         // Error message handling
