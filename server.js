@@ -23,18 +23,17 @@ app.use(cookieParser());
 app.use(session({
     store: new SQLiteStore({
         db: 'sessions.db',
-        dir: '.'
+        dir: process.env.NODE_ENV === 'production' ? '/var/data' : '.',
+        table: 'sessions'
     }),
-    secret: 'your-secret-key',
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax'
-    },
-    proxy: true
+        maxAge: 24 * 60 * 60 * 1000
+    }
 }));
 
 app.set('trust proxy', 1);
@@ -170,29 +169,62 @@ app.get('/signup', async (req, res) => {
 });
 
 app.post('/signup', async (req, res) => {
-    const { username, password, role } = req.body;
-    
     try {
+        const { username, password, role } = req.body;
+        console.log('Signup attempt:', { username, role });
+
+        // Input validation
+        if (!username || !password || !role) {
+            console.log('Missing required fields');
+            return res.render('signup', {
+                error: 'All fields are required',
+                username: username,
+                children: []
+            });
+        }
+
+        // Username validation
+        if (username.length < 3 || !/^[a-zA-Z0-9]+$/.test(username)) {
+            return res.render('signup', {
+                error: 'Username must be at least 3 characters and contain only letters and numbers',
+                username: username,
+                children: []
+            });
+        }
+
+        // Check if user exists
         const existingUser = await userOperations.findByUsername(username);
-        
+        console.log('Existing user check:', existingUser ? 'Found' : 'Not found');
+
         if (existingUser) {
             return res.render('signup', {
                 error: 'Username already exists',
-                username
+                username: username,
+                children: []
             });
         }
-        
-        await userOperations.createUser(username, password, role);
-        
-        res.render('login', {
-            success: 'Account created successfully! Please log in.',
-            username
-        });
+
+        // Create user with error handling
+        try {
+            const userId = await userOperations.createUser(username, password, role);
+            console.log('User created with ID:', userId);
+            
+            // Redirect to login with success message
+            return res.render('login', {
+                error: null,
+                success: 'Account created successfully! Please log in.'
+            });
+        } catch (createError) {
+            console.error('User creation error:', createError);
+            throw createError;
+        }
+
     } catch (error) {
         console.error('Signup error:', error);
-        res.render('signup', {
-            error: 'Error creating account',
-            username
+        return res.render('signup', {
+            error: 'Error creating account: ' + error.message,
+            username: req.body.username,
+            children: []
         });
     }
 });
@@ -654,10 +686,13 @@ app.get('/temp-reset-passwords', async (req, res) => {
     }
 });
 
-// Error handling middleware
+// Error handling middleware (place this before app.listen)
 app.use((err, req, res, next) => {
     console.error('Server error:', err);
-    res.status(500).send('Something broke!');
+    res.status(500).render('error', {
+        message: 'An error occurred',
+        error: process.env.NODE_ENV === 'development' ? err : {}
+    });
 });
 
 // Start server
@@ -944,5 +979,29 @@ app.get('/giphy-key', (req, res) => {
 // Add this to debug CSS serving
 app.get('/css/*', (req, res, next) => {
     console.log('CSS request:', req.path);
+    next();
+});
+
+// Add security headers middleware
+app.use((req, res, next) => {
+    // Cache control
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    
+    // Security headers
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Security-Policy', `
+        default-src 'self';
+        img-src 'self' data: https: *.giphy.com;
+        style-src 'self' 'unsafe-inline';
+        script-src 'self' 'unsafe-inline' https://js.giphy.com;
+        connect-src 'self' https://api.giphy.com;
+        media-src 'self' *.giphy.com;
+        frame-src 'self' *.giphy.com;
+    `.replace(/\s+/g, ' ').trim());
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    
+    // Remove unnecessary headers
+    res.removeHeader('X-Powered-By');
+    
     next();
 });
