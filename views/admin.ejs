@@ -107,6 +107,27 @@
         </div>
     </div>
 
+    <!-- Add Family Member Modal -->
+    <div id="addMemberModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Add Family Member</h2>
+            <form id="addMemberForm">
+                <div class="form-group">
+                    <label for="memberUsername">Username</label>
+                    <input type="text" id="memberUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="memberPassword">Password</label>
+                    <input type="password" id="memberPassword" name="password" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="button button-secondary" onclick="hideAddMemberModal()">Cancel</button>
+                    <button type="submit" class="button button-primary">Add Member</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
     // Modal functions
     function showAddChoreModal() {
@@ -117,12 +138,83 @@
         document.getElementById('addChoreModal').style.display = 'none';
     }
 
+    // New modal functions for family member
+    function showAddMemberModal() {
+        document.getElementById('addMemberModal').style.display = 'block';
+    }
+
+    function hideAddMemberModal() {
+        document.getElementById('addMemberModal').style.display = 'none';
+    }
+
     // Close modal when clicking outside
     window.onclick = function(event) {
         if (event.target.className === 'modal') {
             event.target.style.display = 'none';
         }
     }
+
+    // Add Member Form Submission
+    document.getElementById('addMemberForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = {
+            username: document.getElementById('memberUsername').value,
+            password: document.getElementById('memberPassword').value
+        };
+
+        try {
+            const response = await fetch('/add-child', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('Family member added successfully!');
+                document.getElementById('addMemberForm').reset();
+                hideAddMemberModal();
+                // Optionally refresh the family members list
+                loadFamilyMembers();
+            } else {
+                alert(data.error || 'Error adding family member');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error adding family member');
+        }
+    });
+
+    // Function to load family members
+    async function loadFamilyMembers() {
+        try {
+            const response = await fetch('/family-members');
+            const data = await response.json();
+            
+            const familyList = document.querySelector('.family-list');
+            if (data.members && data.members.length > 0) {
+                familyList.innerHTML = data.members.map(member => `
+                    <div class="family-member-card">
+                        <div class="member-info">
+                            <h3>${member.username}</h3>
+                            <p>Role: ${member.role}</p>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                familyList.innerHTML = '<p class="no-members-message">No family members added yet.</p>';
+            }
+        } catch (error) {
+            console.error('Error loading family members:', error);
+        }
+    }
+
+    // Load family members when page loads
+    document.addEventListener('DOMContentLoaded', loadFamilyMembers);
     </script>
 </body>
 </html>

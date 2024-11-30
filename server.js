@@ -735,3 +735,23 @@ app.use((req, res, next) => {
     console.log('Session state:', req.session);
     res.status(404).send('Route not found');
 });
+
+// Add this console log to check if styles are loading
+app.use('/css', express.static('public/css'));
+console.log('CSS directory:', path.join(__dirname, 'public/css'));
+
+// Add route to get family members
+app.get('/family-members', async (req, res) => {
+    try {
+        db.all('SELECT username, role FROM users WHERE role = "child"', [], (err, rows) => {
+            if (err) {
+                console.error('Database error:', err);
+                return res.status(500).json({ error: 'Error fetching family members' });
+            }
+            res.json({ members: rows });
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
