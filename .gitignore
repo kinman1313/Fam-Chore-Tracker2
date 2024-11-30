@@ -8,4 +8,4 @@ public/css/*.css.map
 node_modules/
 *.db
 public/styles.css.backup
-.env
+.envnode_modules/

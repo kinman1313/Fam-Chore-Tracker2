@@ -112,47 +112,57 @@ app.get('/login', (req, res) => {
 app.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        console.log('Login attempt for:', username); // Debug log
+        console.log('Login attempt for:', username);
 
-        // Check if username exists
         const user = await userOperations.findByUsername(username);
-        console.log('User found:', user ? 'Yes' : 'No'); // Debug log
+        console.log('User found:', user ? 'Yes' : 'No');
 
-        if (!user) {
-            console.log('User not found');
+        if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.render('login', { 
                 error: 'Invalid username or password',
                 success: null
             });
         }
 
-        // Verify password
-        const validPassword = await bcrypt.compare(password, user.password);
-        console.log('Password valid:', validPassword); // Debug log
+        // Clear any existing session
+        req.session.regenerate((err) => {
+            if (err) {
+                console.error('Session regeneration error:', err);
+                return res.render('login', { 
+                    error: 'An error occurred during login',
+                    success: null
+                });
+            }
 
-        if (!validPassword) {
-            console.log('Invalid password');
-            return res.render('login', { 
-                error: 'Invalid username or password',
-                success: null
+            // Set clean session data
+            req.session.userId = user.id;
+            req.session.userRole = user.role;
+            req.session.username = user.username;
+
+            // Save the session without any flash messages
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    return res.render('login', { 
+                        error: 'An error occurred during login',
+                        success: null
+                    });
+                }
+
+                console.log('Clean session set:', {
+                    userId: req.session.userId,
+                    userRole: req.session.userRole,
+                    username: req.session.username
+                });
+
+                res.redirect('/parent-dashboard');
             });
-        }
-
-        // Set session data
-        req.session.userId = user.id;
-        req.session.userRole = user.role;
-        req.session.username = user.username;
-        console.log('Session set:', req.session); // Debug log
-
-        // Redirect based on role
-        const redirectPath = user.role === 'parent' ? '/parent-dashboard' : '/child-dashboard';
-        console.log('Redirecting to:', redirectPath);
-        res.redirect(redirectPath);
+        });
 
     } catch (error) {
-        console.error('Login error details:', error); // Detailed error log
+        console.error('Login error:', error);
         res.render('login', { 
-            error: 'An error occurred during login. Please try again.',
+            error: 'An error occurred during login',
             success: null
         });
     }
@@ -735,22 +745,18 @@ app.post('/rewards/:id/redeem', async (req, res) => {
 });
 
 // Add these route handlers if they don't exist
-app.get('/parent-dashboard', (req, res) => {
+app.get('/parent-dashboard', authenticateParent, (req, res) => {
     console.log('Parent dashboard accessed with session:', {
         userId: req.session.userId,
         userRole: req.session.userRole,
         username: req.session.username
     });
     
-    if (!req.session.userId || req.session.userRole !== 'parent') {
-        console.log('Access denied - no valid session');
-        return res.redirect('/login');
-    }
-    
-    console.log('Rendering admin view for:', req.session.username);
-    res.render('admin', { 
+    res.render('admin', {
         username: req.session.username,
-        role: req.session.userRole
+        role: req.session.userRole,
+        error: null,
+        success: null
     });
 });
 

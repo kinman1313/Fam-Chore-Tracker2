@@ -4,7 +4,7 @@ const fs = require('fs');
 
 // Database path
 const dbPath = process.env.NODE_ENV === 'production' 
-    ? '/data/familychores.db'
+    ? '/var/data/familychores.db'
     : path.join(__dirname, '..', 'familychores.db');
 
 // SQL statements for table creation
@@ -77,8 +77,13 @@ function initializeDatabase() {
     
     // Ensure the data directory exists in production
     if (process.env.NODE_ENV === 'production') {
-        if (!fs.existsSync('/data')) {
-            fs.mkdirSync('/data');
+        if (!fs.existsSync('/var/data')) {
+            try {
+                fs.mkdirSync('/var/data', { recursive: true });
+                console.log('Created /var/data directory');
+            } catch (error) {
+                console.error('Error creating data directory:', error);
+            }
         }
     }
 
