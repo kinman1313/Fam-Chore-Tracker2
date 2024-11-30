@@ -695,10 +695,18 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// Initialize database
+initializeDatabase()
+    .then(() => {
+        console.log('Database initialized successfully');
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error('Failed to initialize database:', err);
+        process.exit(1);
+    });
 
 // Add these routes if not present
 app.post('/chores/:id/toggle', async (req, res) => {

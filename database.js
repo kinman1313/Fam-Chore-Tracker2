@@ -29,111 +29,74 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.log('Connected to SQLite database at:', dbPath);
 });
 
+// Add this near your database connection
+db.on('error', (err) => {
+    console.error('Database error:', err);
+});
+
+// Test database connection
+db.get('SELECT 1', [], (err, row) => {
+    if (err) {
+        console.error('Database connection test failed:', err);
+    } else {
+        console.log('Database connection test successful');
+    }
+});
+
 // Initialize database tables
-function initializeDatabase() {
+const initializeDatabase = () => {
     return new Promise((resolve, reject) => {
+        console.log('Starting database initialization...');
+        
+        // Create tables
         db.serialize(() => {
-            try {
-                // Users table
-                db.run(`
-                    CREATE TABLE IF NOT EXISTS users (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        username TEXT UNIQUE NOT NULL,
-                        password TEXT NOT NULL,
-                        role TEXT NOT NULL,
-                        points INTEGER DEFAULT 0,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                    )
-                `);
+            // Users table
+            db.run(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    points INTEGER DEFAULT 0,
+                    avatar TEXT DEFAULT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, (err) => {
+                if (err) {
+                    console.error('Error creating users table:', err);
+                    reject(err);
+                    return;
+                }
+                console.log('Users table created or already exists');
+            });
 
-                // Chores table
-                db.run(`
-                    CREATE TABLE IF NOT EXISTS chores (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        assigned_to INTEGER NOT NULL,
-                        created_by INTEGER NOT NULL,
-                        points INTEGER DEFAULT 0,
-                        completed BOOLEAN DEFAULT 0,
-                        verified BOOLEAN DEFAULT 0,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        completed_at DATETIME,
-                        FOREIGN KEY (assigned_to) REFERENCES users(id),
-                        FOREIGN KEY (created_by) REFERENCES users(id)
-                    )
-                `);
+            // Create default admin user if none exists
+            db.get("SELECT COUNT(*) as count FROM users WHERE role = 'parent'", [], async (err, row) => {
+                if (err) {
+                    console.error('Error checking for admin user:', err);
+                    return;
+                }
 
-                // Password reset table
-                db.run(`
-                    CREATE TABLE IF NOT EXISTS password_resets (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        reset_token TEXT NOT NULL,
-                        expires_at DATETIME NOT NULL,
-                        used BOOLEAN DEFAULT 0,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (user_id) REFERENCES users(id)
-                    )
-                `);
-
-                // Rewards table
-                db.run(`
-                    CREATE TABLE IF NOT EXISTS rewards (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        description TEXT,
-                        pointsCost INTEGER NOT NULL,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                    )
-                `);
-
-                // Achievements table
-                db.run(`
-                    CREATE TABLE IF NOT EXISTS achievements (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        description TEXT,
-                        icon TEXT NOT NULL,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                    )
-                `);
-
-                // User achievements table
-                db.run(`
-                    CREATE TABLE IF NOT EXISTS user_achievements (
-                        user_id INTEGER NOT NULL,
-                        achievement_id INTEGER NOT NULL,
-                        earned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        PRIMARY KEY (user_id, achievement_id),
-                        FOREIGN KEY (user_id) REFERENCES users(id),
-                        FOREIGN KEY (achievement_id) REFERENCES achievements(id)
-                    )
-                `);
-
-                // Check for default users
-                db.get("SELECT COUNT(*) as count FROM users", [], async (err, row) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-
-                    if (row.count === 0) {
-                        try {
-                            await createDefaultUsers();
-                            resolve();
-                        } catch (error) {
-                            reject(error);
+                if (row.count === 0) {
+                    const hashedPassword = await bcrypt.hash('admin123', 10);
+                    db.run(
+                        'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                        ['admin', hashedPassword, 'parent'],
+                        (err) => {
+                            if (err) {
+                                console.error('Error creating admin user:', err);
+                                return;
+                            }
+                            console.log('Default admin user created');
                         }
-                    } else {
-                        resolve();
-                    }
-                });
-            } catch (error) {
-                reject(error);
-            }
+                    );
+                }
+            });
+
+            resolve();
         });
     });
-}
+};
 
 // Create default users
 async function createDefaultUsers() {
@@ -162,8 +125,9 @@ async function createDefaultUsers() {
 
 // User operations
 const userOperations = {
-    findByUsername: (username) => {
+    findByUsername(username) {
         return new Promise((resolve, reject) => {
+            console.log('Looking for user:', username);
             db.get(
                 'SELECT * FROM users WHERE username = ?',
                 [username],
@@ -171,10 +135,10 @@ const userOperations = {
                     if (err) {
                         console.error('Database error:', err);
                         reject(err);
-                    } else {
-                        console.log('Found user:', row ? 'Yes' : 'No');
-                        resolve(row);
+                        return;
                     }
+                    console.log('User found:', row ? 'Yes' : 'No');
+                    resolve(row);
                 }
             );
         });
@@ -183,16 +147,24 @@ const userOperations = {
     createUser(username, password, role) {
         return new Promise(async (resolve, reject) => {
             try {
+                console.log('Creating user:', { username, role });
                 const hashedPassword = await bcrypt.hash(password, 10);
+                
                 db.run(
                     'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
                     [username, hashedPassword, role],
                     function(err) {
-                        if (err) reject(err);
+                        if (err) {
+                            console.error('Database error:', err);
+                            reject(err);
+                            return;
+                        }
+                        console.log('User created with ID:', this.lastID);
                         resolve(this.lastID);
                     }
                 );
             } catch (err) {
+                console.error('Error in createUser:', err);
                 reject(err);
             }
         });
