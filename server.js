@@ -114,23 +114,27 @@ app.post('/login', async (req, res) => {
         const { username, password } = req.body;
         console.log('Login attempt for:', username); // Debug log
 
+        // Check if username exists
         const user = await userOperations.findByUsername(username);
         console.log('User found:', user ? 'Yes' : 'No'); // Debug log
 
         if (!user) {
+            console.log('User not found');
             return res.render('login', { 
                 error: 'Invalid username or password',
-                username 
+                success: null
             });
         }
 
+        // Verify password
         const validPassword = await bcrypt.compare(password, user.password);
         console.log('Password valid:', validPassword); // Debug log
 
         if (!validPassword) {
+            console.log('Invalid password');
             return res.render('login', { 
                 error: 'Invalid username or password',
-                username 
+                success: null
             });
         }
 
@@ -141,19 +145,15 @@ app.post('/login', async (req, res) => {
         console.log('Session set:', req.session); // Debug log
 
         // Redirect based on role
-        if (user.role === 'parent') {
-            console.log('Redirecting to parent dashboard'); // Debug log
-            res.redirect('/parent-dashboard');
-        } else {
-            console.log('Redirecting to child dashboard'); // Debug log
-            res.redirect('/child-dashboard');
-        }
+        const redirectPath = user.role === 'parent' ? '/parent-dashboard' : '/child-dashboard';
+        console.log('Redirecting to:', redirectPath);
+        res.redirect(redirectPath);
 
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('Login error details:', error); // Detailed error log
         res.render('login', { 
-            error: 'An error occurred during login',
-            username: req.body.username 
+            error: 'An error occurred during login. Please try again.',
+            success: null
         });
     }
 });
