@@ -39,27 +39,27 @@ app.use(session({
 
 app.set('trust proxy', 1);
 
-app.use('/css', express.static(path.join(__dirname, 'public/css'), {
-    setHeaders: (res, path) => {
-        res.setHeader('Content-Type', 'text/css');
-    }
-}));
-app.use(express.static('public'));
-
-app.set('view engine', 'ejs');
-app.use('/css', express.static('public/css', {
-    setHeaders: (res, path) => {
-        res.setHeader('Content-Type', 'text/css');
-    }
-}));
-
+// Consolidated static file serving
 app.use(express.static('public', {
-    setHeaders: (res, path) => {
-        if (path.endsWith('.css')) {
+    setHeaders: (res, file) => {
+        if (file.endsWith('.css')) {
             res.setHeader('Content-Type', 'text/css');
         }
     }
 }));
+
+// Debug middleware for CSS requests
+app.use((req, res, next) => {
+    if (req.path.endsWith('.css')) {
+        console.log('CSS request:', {
+            path: req.path,
+            contentType: res.getHeader('Content-Type')
+        });
+    }
+    next();
+});
+
+app.set('view engine', 'ejs');
 
 // Authentication Middleware
 const authenticateUser = (req, res, next) => {
@@ -751,10 +751,6 @@ app.use((req, res, next) => {
     console.log('Session state:', req.session);
     res.status(404).send('Route not found');
 });
-
-// Add this console log to check if styles are loading
-app.use('/css', express.static('public/css'));
-console.log('CSS directory:', path.join(__dirname, 'public/css'));
 
 // Add route to get family members
 app.get('/family-members', async (req, res) => {
