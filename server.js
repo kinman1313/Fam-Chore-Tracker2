@@ -17,7 +17,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize database
-initializeDatabase();
+const db = initializeDatabase();
 
 // Middleware setup
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -754,4 +754,177 @@ app.get('/family-members', async (req, res) => {
         console.error('Error:', error);
         res.status(500).json({ error: 'Server error' });
     }
+});
+
+// Posts Routes
+app.get('/api/posts', async (req, res) => {
+    try {
+        const posts = await db.all(`
+            SELECT 
+                p.*,
+                u.username,
+                u.avatar as userAvatar,
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            ORDER BY p.created_at DESC
+        `);
+        res.json(posts);
+    } catch (error) {
+        res.status(500).json({ error: 'Error fetching posts' });
+    }
+});
+
+app.post('/api/posts', async (req, res) => {
+    const { content, mediaUrl, mediaType } = req.body;
+    const userId = req.session.userId;
+
+    try {
+        await db.run(`
+            INSERT INTO posts (user_id, content, media_url, media_type)
+            VALUES (?, ?, ?, ?)
+        `, [userId, content, mediaUrl, mediaType]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Error creating post' });
+    }
+});
+
+// Comments Routes
+app.get('/api/posts/:postId/comments', async (req, res) => {
+    try {
+        const comments = await db.all(`
+            SELECT 
+                c.*,
+                u.username,
+                u.avatar as userAvatar
+            FROM comments c
+            JOIN users u ON c.user_id = u.id
+            WHERE c.post_id = ?
+            ORDER BY c.created_at ASC
+        `, [req.params.postId]);
+        res.json(comments);
+    } catch (error) {
+        res.status(500).json({ error: 'Error fetching comments' });
+    }
+});
+
+app.post('/api/posts/:postId/comments', async (req, res) => {
+    const { content, mediaUrl, mediaType } = req.body;
+    const userId = req.session.userId;
+    const postId = req.params.postId;
+
+    try {
+        await db.run(`
+            INSERT INTO comments (post_id, user_id, content, media_url, media_type)
+            VALUES (?, ?, ?, ?, ?)
+        `, [postId, userId, content, mediaUrl, mediaType]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Error creating comment' });
+    }
+});
+
+// Add these new routes for enhanced forum functionality
+app.delete('/api/posts/:postId', authenticateUser, async (req, res) => {
+    try {
+        const post = await db.get('SELECT user_id FROM posts WHERE id = ?', [req.params.postId]);
+        
+        // Check if user owns the post or is a parent
+        if (post.user_id !== req.session.userId && req.session.userRole !== 'parent') {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+        
+        await db.run('DELETE FROM posts WHERE id = ?', [req.params.postId]);
+        await db.run('DELETE FROM comments WHERE post_id = ?', [req.params.postId]);
+        await db.run('DELETE FROM reactions WHERE post_id = ?', [req.params.postId]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting post:', error);
+        res.status(500).json({ error: 'Error deleting post' });
+    }
+});
+
+app.put('/api/posts/:postId', authenticateUser, async (req, res) => {
+    try {
+        const { content } = req.body;
+        const post = await db.get('SELECT user_id FROM posts WHERE id = ?', [req.params.postId]);
+        
+        if (post.user_id !== req.session.userId) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+        
+        await db.run('UPDATE posts SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+            [content, req.params.postId]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating post:', error);
+        res.status(500).json({ error: 'Error updating post' });
+    }
+});
+
+// Enhance the existing post creation route to handle Giphy
+app.post('/api/posts', authenticateUser, async (req, res) => {
+    const { content, giphyUrl } = req.body;
+    const userId = req.session.userId;
+
+    try {
+        const result = await db.run(`
+            INSERT INTO posts (user_id, content, media_url, media_type, created_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `, [userId, content, giphyUrl, giphyUrl ? 'giphy' : null]);
+        
+        // Fetch the created post with user details
+        const post = await db.get(`
+            SELECT 
+                p.*,
+                u.username,
+                u.avatar as userAvatar
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = ?
+        `, [result.lastID]);
+        
+        res.json({ success: true, post });
+    } catch (error) {
+        console.error('Error creating post:', error);
+        res.status(500).json({ error: 'Error creating post' });
+    }
+});
+
+// Enhance the family feed route to include initial data
+app.get('/family-feed', authenticateUser, async (req, res) => {
+    try {
+        const posts = await db.all(`
+            SELECT 
+                p.*,
+                u.username,
+                u.avatar as userAvatar,
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
+                (SELECT COUNT(*) FROM reactions WHERE post_id = p.id) as reaction_count
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            ORDER BY p.created_at DESC
+            LIMIT 10
+        `);
+        
+        res.render('family-feed', {
+            username: req.session.username,
+            userRole: req.session.userRole,
+            userId: req.session.userId,
+            initialPosts: posts,
+            giphyKey: process.env.GIPHY_API_KEY
+        });
+    } catch (error) {
+        console.error('Error loading family feed:', error);
+        res.status(500).render('error', { 
+            message: 'Error loading family feed'
+        });
+    }
+});
+
+app.get('/giphy-key', (req, res) => {
+    res.json({ key: process.env.GIPHY_API_KEY });
 });
