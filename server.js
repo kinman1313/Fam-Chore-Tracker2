@@ -39,8 +39,27 @@ app.use(session({
 
 app.set('trust proxy', 1);
 
+app.use('/css', express.static(path.join(__dirname, 'public/css'), {
+    setHeaders: (res, path) => {
+        res.setHeader('Content-Type', 'text/css');
+    }
+}));
 app.use(express.static('public'));
+
 app.set('view engine', 'ejs');
+app.use('/css', express.static('public/css', {
+    setHeaders: (res, path) => {
+        res.setHeader('Content-Type', 'text/css');
+    }
+}));
+
+app.use(express.static('public', {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        }
+    }
+}));
 
 // Authentication Middleware
 const authenticateUser = (req, res, next) => {
@@ -924,4 +943,10 @@ app.get('/family-feed', authenticateUser, async (req, res) => {
 
 app.get('/giphy-key', (req, res) => {
     res.json({ key: process.env.GIPHY_API_KEY });
+});
+
+// Add this to debug CSS serving
+app.get('/css/*', (req, res, next) => {
+    console.log('CSS request:', req.path);
+    next();
 });

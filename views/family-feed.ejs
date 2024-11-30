@@ -1,176 +1,61 @@
-<%- include('partials/header') %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Feed - Chore Tracker</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <%- include('partials/navbar') %>
 
-<div class="container mt-4">
-  <!-- Post Creation Form -->
-  <div class="mb-4">
-    <form action="/posts/create" method="POST" class="post-form">
-      <div class="form-group">
-        <textarea 
-          class="form-control" 
-          name="content" 
-          placeholder="Start a discussion..."
-          rows="3"
-          required
-        ></textarea>
-      </div>
-      
-      <!-- Giphy Integration -->
-      <div class="giphy-section mb-3">
-        <button type="button" class="btn btn-secondary" id="giphySearch">
-          <i class="fas fa-gif"></i> Add GIF
-        </button>
-        <div id="giphyContainer" class="d-none">
-          <input type="text" id="giphySearchInput" class="form-control" placeholder="Search GIFs...">
-          <div id="giphyResults" class="giphy-results"></div>
-        </div>
-        <input type="hidden" name="giphyUrl" id="selectedGiphy">
-      </div>
-
-      <button type="submit" class="btn btn-primary">Post</button>
-    </form>
-  </div>
-
-  <!-- Posts/Forum Section -->
-  <div class="forum-container">
-    <% posts.forEach(post => { %>
-      <div class="card mb-4">
-        <div class="card-header">
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="user-info">
-              <img src="<%= post.user.avatar || '/images/default-avatar.png' %>" 
-                   class="rounded-circle" 
-                   width="40" 
-                   alt="User avatar">
-              <span class="ml-2"><%= post.user.username %></span>
-            </div>
-            <small class="text-muted"><%= post.createdAt.toLocaleDateString() %></small>
-          </div>
-        </div>
-        
-        <div class="card-body">
-          <p class="card-text"><%= post.content %></p>
-          <% if (post.giphyUrl) { %>
-            <img src="<%= post.giphyUrl %>" class="giphy-image img-fluid" alt="Giphy">
-          <% } %>
-        </div>
-
-        <!-- Comments Section -->
-        <div class="card-footer">
-          <button class="btn btn-link" onclick="toggleComments('<%= post._id %>')">
-            Comments (<%= post.comments.length %>)
-          </button>
-          
-          <div id="comments-<%= post._id %>" class="comments-section d-none">
-            <!-- Comment Form -->
-            <form action="/comments/<%= post._id %>" method="POST" class="mb-3">
-              <div class="input-group">
-                <input type="text" 
-                       class="form-control" 
-                       name="content" 
-                       placeholder="Add a comment...">
-                <div class="input-group-append">
-                  <button class="btn btn-outline-primary" type="submit">Send</button>
+    <main class="feed-container">
+        <!-- Create Post Section -->
+        <div class="create-post-card">
+            <form id="createPostForm" class="post-form">
+                <div class="post-input-wrapper">
+                    <textarea 
+                        placeholder="Share something with the family..."
+                        class="post-input"
+                        id="postContent"
+                    ></textarea>
+                    <button type="button" class="gif-button" id="gifButton">
+                        GIF
+                    </button>
                 </div>
-              </div>
+                <div id="selectedGif" class="selected-gif-preview"></div>
+                <div class="post-actions">
+                    <button type="submit" class="button button-primary">
+                        Post
+                    </button>
+                </div>
             </form>
-
-            <!-- Comments List -->
-            <div class="comments-list">
-              <% post.comments.forEach(comment => { %>
-                <div class="comment p-2">
-                  <small class="font-weight-bold"><%= comment.user.username %></small>
-                  <p class="mb-1"><%= comment.content %></p>
-                  <small class="text-muted"><%= comment.createdAt.toLocaleDateString() %></small>
-                </div>
-              <% }) %>
-            </div>
-          </div>
         </div>
-      </div>
-    <% }) %>
-  </div>
-</div>
 
-<script>
-  // Giphy API Integration
-  const giphyApiKey = '<%= process.env.GIPHY_API_KEY %>';
-  
-  document.getElementById('giphySearch').addEventListener('click', () => {
-    document.getElementById('giphyContainer').classList.toggle('d-none');
-  });
+        <!-- Posts Feed -->
+        <div class="posts-feed" id="postsFeed">
+            <!-- Posts will be loaded here dynamically -->
+        </div>
 
-  let giphyTimeout;
-  document.getElementById('giphySearchInput').addEventListener('input', (e) => {
-    clearTimeout(giphyTimeout);
-    giphyTimeout = setTimeout(() => searchGiphy(e.target.value), 500);
-  });
+        <!-- GIF Picker Modal -->
+        <div id="gifModal" class="modal">
+            <div class="modal-content gif-modal">
+                <span class="close-modal">&times;</span>
+                <div class="gif-search">
+                    <input 
+                        type="text" 
+                        id="gifSearch" 
+                        placeholder="Search GIFs..."
+                        class="gif-search-input"
+                    >
+                </div>
+                <div class="gif-grid" id="gifGrid"></div>
+            </div>
+        </div>
+    </main>
 
-  async function searchGiphy(query) {
-    if (!query) return;
-    
-    try {
-      const response = await fetch(
-        `https://api.giphy.com/v1/gifs/search?api_key=${giphyApiKey}&q=${query}&limit=9`
-      );
-      const data = await response.json();
-      
-      const resultsDiv = document.getElementById('giphyResults');
-      resultsDiv.innerHTML = '';
-      
-      data.data.forEach(gif => {
-        const img = document.createElement('img');
-        img.src = gif.images.fixed_height_small.url;
-        img.onclick = () => selectGiphy(gif.images.original.url);
-        resultsDiv.appendChild(img);
-      });
-    } catch (error) {
-      console.error('Error fetching GIFs:', error);
-    }
-  }
-
-  function selectGiphy(url) {
-    document.getElementById('selectedGiphy').value = url;
-    document.getElementById('giphyContainer').classList.add('d-none');
-    // Add preview of selected GIF
-    // ... implementation
-  }
-
-  function toggleComments(postId) {
-    const commentsSection = document.getElementById(`comments-${postId}`);
-    commentsSection.classList.toggle('d-none');
-  }
-</script>
-
-<style>
-  .giphy-results {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-top: 10px;
-  }
-
-  .giphy-results img {
-    width: 100%;
-    cursor: pointer;
-    border-radius: 4px;
-  }
-
-  .giphy-results img:hover {
-    opacity: 0.8;
-  }
-
-  .comments-section {
-    border-top: 1px solid #dee2e6;
-    padding-top: 1rem;
-  }
-
-  .comment {
-    border-bottom: 1px solid #eee;
-  }
-
-  .comment:last-child {
-    border-bottom: none;
-  }
-</style>
-
-<%- include('partials/footer') %>
+    <%- include('partials/feed-scripts') %>
+</body>
+</html>
