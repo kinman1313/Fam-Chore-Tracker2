@@ -118,15 +118,24 @@ async function startServer() {
 
         if (!admin) {
             const hashedPassword = await bcrypt.hash('admin123', 10);
-            await db.run(
-                'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-                ['admin', hashedPassword, 'parent']
-            );
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                    ['admin', hashedPassword, 'parent'],
+                    (err) => {
+                        if (err) reject(err);
+                        resolve();
+                    }
+                );
+            });
             console.log('Default admin user created');
         }
 
+        // Start the server
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
+            console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`Database path: ${dbPath}`);
         });
     } catch (error) {
         console.error('Server startup error:', error);
@@ -134,7 +143,11 @@ async function startServer() {
     }
 }
 
-startServer();
+// Start the server
+startServer().catch(error => {
+    console.error('Fatal error during startup:', error);
+    process.exit(1);
+});
 
 // Home route
 app.get('/', (req, res) => {
