@@ -62,7 +62,99 @@ const transporter = process.env.NODE_ENV === 'production' ? nodemailer.createTra
     }
 };
 
-// ... rest of your routes and configurations ...
+// Home route
+app.get('/', (req, res) => {
+    if (req.session.userId) {
+        res.redirect('/admin'); // Redirect logged-in users to dashboard
+    } else {
+        res.redirect('/login'); // Redirect others to login
+    }
+});
+
+// Login route
+app.get('/login', (req, res) => {
+    if (req.session.userId) {
+        res.redirect('/admin');
+        return;
+    }
+    res.render('login');
+});
+
+// Admin/Dashboard route
+app.get('/admin', (req, res) => {
+    if (!req.session.userId) {
+        res.redirect('/login');
+        return;
+    }
+    res.render('admin', {
+        username: req.session.username,
+        role: req.session.userRole
+    });
+});
+
+// Login POST handler
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+
+    try {
+        const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+        
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        
+        if (!validPassword) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
+
+        req.session.userId = user.id;
+        req.session.userRole = user.role;
+        req.session.username = user.username;
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+// Logout route
+app.get('/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Logout error:', err);
+        }
+        res.redirect('/login');
+    });
+});
+
+// Register route
+app.get('/register', (req, res) => {
+    if (req.session.userId) {
+        res.redirect('/admin');
+        return;
+    }
+    res.render('register');
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).render('error', { 
+        message: 'Something broke!',
+        error: process.env.NODE_ENV === 'development' ? err : {}
+    });
+});
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).render('error', { 
+        message: 'Page not found',
+        error: { status: 404 }
+    });
+});
 
 // 8. Start server
 const PORT = process.env.PORT || 3000;
