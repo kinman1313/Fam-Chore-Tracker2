@@ -62,6 +62,74 @@ const transporter = process.env.NODE_ENV === 'production' ? nodemailer.createTra
     }
 };
 
+// After your requires, before setting up routes
+async function initializeDatabase() {
+    const initSQL = `
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS sessions (
+            sid TEXT PRIMARY KEY,
+            sess TEXT NOT NULL,
+            expired DATETIME NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS password_resets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token TEXT NOT NULL,
+            expires_at DATETIME NOT NULL,
+            used BOOLEAN DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+    `;
+
+    return new Promise((resolve, reject) => {
+        db.exec(initSQL, (err) => {
+            if (err) {
+                console.error('Database initialization error:', err);
+                reject(err);
+            } else {
+                console.log('Database tables created successfully');
+                resolve();
+            }
+        });
+    });
+}
+
+// Update server startup
+async function startServer() {
+    try {
+        await initializeDatabase();
+        
+        // Create default admin user if none exists
+        const admin = await db.get('SELECT * FROM users WHERE role = ?', ['parent']);
+        if (!admin) {
+            const hashedPassword = await bcrypt.hash('admin123', 10);
+            await db.run(
+                'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                ['admin', hashedPassword, 'parent']
+            );
+            console.log('Default admin user created');
+        }
+
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error('Server startup error:', error);
+        process.exit(1);
+    }
+}
+
+startServer();
+
 // Home route
 app.get('/', (req, res) => {
     if (req.session.userId) {
@@ -95,9 +163,14 @@ app.get('/admin', (req, res) => {
 // Login POST handler
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
-
+    
     try {
-        const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+        const user = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
+                if (err) reject(err);
+                resolve(row);
+            });
+        });
         
         if (!user) {
             return res.status(401).json({ error: 'Invalid username or password' });
@@ -154,12 +227,6 @@ app.use((req, res) => {
         message: 'Page not found',
         error: { status: 404 }
     });
-});
-
-// 8. Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
 });
 
 // Export for testing
