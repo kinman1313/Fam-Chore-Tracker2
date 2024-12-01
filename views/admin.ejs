@@ -6,6 +6,62 @@
     <title>Parent Dashboard - Family Chore Tracker</title>
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/components.css">
+    <script>
+        // Check if styles are loaded
+        window.onload = function() {
+            console.log('Page fully loaded');
+        };
+
+        // Add error handling for script loading
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Script error:', { msg, url, lineNo, columnNo, error });
+            return false;
+        };
+
+        // Ensure DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            
+            // Initialize modals
+            const addChoreModal = document.getElementById('addChoreModal');
+            const addMemberModal = document.getElementById('addMemberModal');
+
+            // Modal functions with error handling
+            window.showAddChoreModal = function() {
+                try {
+                    addChoreModal.style.display = 'block';
+                } catch (error) {
+                    console.error('Error showing chore modal:', error);
+                }
+            };
+
+            window.hideAddChoreModal = function() {
+                try {
+                    addChoreModal.style.display = 'none';
+                } catch (error) {
+                    console.error('Error hiding chore modal:', error);
+                }
+            };
+
+            window.showAddMemberModal = function() {
+                try {
+                    addMemberModal.style.display = 'block';
+                } catch (error) {
+                    console.error('Error showing member modal:', error);
+                }
+            };
+
+            window.hideAddMemberModal = function() {
+                try {
+                    addMemberModal.style.display = 'none';
+                } catch (error) {
+                    console.error('Error hiding member modal:', error);
+                }
+            };
+
+            // Rest of your existing script...
+        });
+    </script>
 </head>
 <body>
     <nav class="navbar">
@@ -129,24 +185,6 @@
     </div>
 
     <script>
-    // Modal functions
-    function showAddChoreModal() {
-        document.getElementById('addChoreModal').style.display = 'block';
-    }
-
-    function hideAddChoreModal() {
-        document.getElementById('addChoreModal').style.display = 'none';
-    }
-
-    // New modal functions for family member
-    function showAddMemberModal() {
-        document.getElementById('addMemberModal').style.display = 'block';
-    }
-
-    function hideAddMemberModal() {
-        document.getElementById('addMemberModal').style.display = 'none';
-    }
-
     // Close modal when clicking outside
     window.onclick = function(event) {
         if (event.target.className === 'modal') {
