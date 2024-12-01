@@ -253,5 +253,87 @@ app.use((req, res) => {
     });
 });
 
+// Registration API endpoint
+app.post('/api/register', async (req, res) => {
+    const { username, password, role } = req.body;
+    
+    // Input validation
+    if (!username || !password || !role) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'All fields are required' 
+        });
+    }
+
+    // Role validation
+    if (!['parent', 'child'].includes(role)) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Invalid role specified' 
+        });
+    }
+
+    try {
+        // Check if username already exists
+        const existingUser = await new Promise((resolve, reject) => {
+            db.get('SELECT id FROM users WHERE username = ?', [username], (err, row) => {
+                if (err) reject(err);
+                resolve(row);
+            });
+        });
+
+        if (existingUser) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Username already exists' 
+            });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Insert new user
+        await new Promise((resolve, reject) => {
+            db.run(
+                'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                [username, hashedPassword, role],
+                function(err) {
+                    if (err) reject(err);
+                    resolve(this.lastID);
+                }
+            );
+        });
+
+        // Log success
+        console.log('New user registered:', username, role);
+
+        // Return success response
+        res.json({ 
+            success: true, 
+            message: 'Registration successful' 
+        });
+
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Registration failed' 
+        });
+    }
+});
+
+// Add this middleware before your routes to log requests
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+        console.log('API Request:', {
+            method: req.method,
+            path: req.path,
+            body: req.body,
+            timestamp: new Date().toISOString()
+        });
+    }
+    next();
+});
+
 // Export for testing
 module.exports = { app, db };

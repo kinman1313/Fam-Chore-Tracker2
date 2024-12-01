@@ -37,6 +37,10 @@
     <script>
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger mt-3 d-none';
+            e.target.appendChild(errorDiv);
+
             try {
                 const response = await fetch('/api/register', {
                     method: 'POST',
@@ -51,14 +55,27 @@
                 });
 
                 const data = await response.json();
+                
                 if (data.success) {
-                    alert('Registration successful! Please login.');
-                    window.location.href = '/login';
+                    // Show success message
+                    const successDiv = document.createElement('div');
+                    successDiv.className = 'alert alert-success mt-3';
+                    successDiv.textContent = 'Registration successful! Redirecting to login...';
+                    e.target.appendChild(successDiv);
+                    
+                    // Redirect after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
                 } else {
-                    alert(data.error || 'Registration failed');
+                    // Show error message
+                    errorDiv.textContent = data.error || 'Registration failed';
+                    errorDiv.classList.remove('d-none');
                 }
             } catch (error) {
-                alert('Registration failed');
+                console.error('Registration error:', error);
+                errorDiv.textContent = 'Registration failed. Please try again.';
+                errorDiv.classList.remove('d-none');
             }
         });
     </script>
