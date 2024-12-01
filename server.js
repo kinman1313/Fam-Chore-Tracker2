@@ -124,57 +124,49 @@ app.get('/login', (req, res) => {
 app.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        console.log('1. Login attempt for:', username);
+        console.log('Login attempt for:', username);
 
-        const user = await userOperations.findByUsername(username);
-        console.log('2. User found:', user);
+        // Make username search case-insensitive
+        const user = await new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM users WHERE LOWER(username) = LOWER(?)',
+                [username],
+                (err, row) => {
+                    if (err) reject(err);
+                    resolve(row);
+                }
+            );
+        });
 
         if (!user) {
-            return res.render('login', { error: 'Invalid credentials', success: null });
+            return res.render('login', { 
+                error: 'Invalid username or password',
+                success: null
+            });
         }
 
         const validPassword = await bcrypt.compare(password, user.password);
-        console.log('3. Password comparison:', {
-            inputPassword: password,
-            hashedPassword: user.password,
-            isValid: validPassword
-        });
-
+        
         if (!validPassword) {
-            return res.render('login', { error: 'Invalid credentials', success: null });
+            return res.render('login', { 
+                error: 'Invalid username or password',
+                success: null
+            });
         }
 
-        // Create a clean session without flash messages
-        req.session.regenerate((err) => {
-            if (err) {
-                console.error('Session regeneration error:', err);
-                return res.render('login', { error: 'Login error', success: null });
-            }
+        // Set clean session
+        req.session.userId = user.id;
+        req.session.userRole = user.role;
+        req.session.username = user.username;
 
-            // Set only the necessary session data
-            req.session.userId = user.id;
-            req.session.userRole = user.role;
-            req.session.username = user.username;
-
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Session save error:', err);
-                    return res.render('login', { error: 'Login error', success: null });
-                }
-
-                console.log('4. Clean session created:', {
-                    userId: req.session.userId,
-                    userRole: req.session.userRole,
-                    username: req.session.username
-                });
-
-                return res.redirect('/parent-dashboard');
-            });
-        });
+        return res.redirect('/parent-dashboard');
 
     } catch (error) {
         console.error('Login error:', error);
-        return res.render('login', { error: 'Server error', success: null });
+        return res.render('login', { 
+            error: 'An error occurred',
+            success: null
+        });
     }
 });
 
@@ -1069,4 +1061,37 @@ app.get('/test-session', (req, res) => {
         session: req.session,
         sessionID: req.sessionID
     });
+});
+
+// Add this cleanup route temporarily
+app.get('/cleanup-users', async (req, res) => {
+    try {
+        // Delete all existing users
+        await new Promise((resolve, reject) => {
+            db.run('DELETE FROM users', [], (err) => {
+                if (err) reject(err);
+                resolve();
+            });
+        });
+
+        // Create a fresh parent user
+        const password = '123123'; // Simple password for testing
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        await new Promise((resolve, reject) => {
+            db.run(
+                'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                ['parent', hashedPassword, 'parent'],
+                (err) => {
+                    if (err) reject(err);
+                    resolve();
+                }
+            );
+        });
+
+        res.send('Database cleaned and fresh parent user created');
+    } catch (error) {
+        console.error('Cleanup error:', error);
+        res.status(500).send('Error during cleanup');
+    }
 });
