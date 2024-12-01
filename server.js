@@ -3,6 +3,8 @@ const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
+const path = require('path');
+const crypto = require('crypto');
 
 // Basic middleware
 app.use(express.urlencoded({ extended: true }));
@@ -18,9 +20,9 @@ app.use('/js', express.static(path.join(__dirname, 'node_modules/bootstrap/dist/
 app.use(session({
     store: new SQLiteStore({
         db: 'sessions.db',
-        dir: './db'  // Make sure this directory exists
+        dir: process.env.NODE_ENV === 'production' ? '/var/data' : '.'
     }),
-    secret: 'your-secret-key',  // Change this to a secure secret
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -30,8 +32,17 @@ app.use(session({
 }));
 
 // Database setup
-const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('/var/data/chore_tracker.db');
+const dbPath = process.env.NODE_ENV === 'production' 
+    ? '/var/data/familychores.db'
+    : path.join(__dirname, 'familychores.db');
+
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Error connecting to database:', err);
+        process.exit(1);
+    }
+    console.log('Connected to database at:', dbPath);
+});
 
 // Create tables
 db.serialize(() => {
