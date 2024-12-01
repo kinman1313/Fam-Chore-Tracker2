@@ -5,6 +5,7 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 // Basic middleware
 app.use(express.urlencoded({ extended: true }));
@@ -362,14 +363,37 @@ function createNotification(userId, type, message) {
     });
 }
 
-// Email configuration (add to your env variables)
-const transporter = nodemailer.createTransport({
+// Email configuration - declare once at the top level
+const transporter = process.env.NODE_ENV === 'production' ? nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: process.env.EMAIL_USER || '',
+        pass: process.env.EMAIL_APP_PASSWORD || ''
     }
-});
+}) : {
+    // Mock transporter for development
+    sendMail: (options) => {
+        console.log('Development mode - Email would have been sent:', options);
+        return Promise.resolve({ success: true });
+    }
+};
+
+// Helper function for sending emails
+async function sendEmail(to, subject, html) {
+    try {
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER || 'noreply@famchores.com',
+            to,
+            subject,
+            html
+        });
+        console.log('Email sent successfully');
+        return true;
+    } catch (error) {
+        console.error('Error sending email:', error);
+        return false;
+    }
+}
 
 // Reward redemption endpoints
 app.post('/api/rewards/redeem', async (req, res) => {
@@ -857,50 +881,45 @@ db.run(`CREATE TABLE IF NOT EXISTS password_resets (
     FOREIGN KEY (user_id) REFERENCES users(id)
 )`);
 
-// Email configuration (add these to your environment variables)
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD // Use app-specific password
-    }
-});
-
-// Password reset request route
+// Update password reset route to use the sendEmail function
 app.post('/api/password-reset/request', async (req, res) => {
     const { username } = req.body;
 
     try {
-        // Find user
         const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Generate reset token
         const token = crypto.randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + 3600000); // 1 hour from now
+        const expiresAt = new Date(Date.now() + 3600000); // 1 hour
 
-        // Save reset token
         await db.run(
             'INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)',
             [user.id, token, expiresAt]
         );
 
-        // Send reset email
-        const resetLink = `${process.env.APP_URL}/reset-password/${token}`;
-        await transporter.sendMail({
-            to: user.email,
-            subject: 'Password Reset Request',
-            html: `
+        // Use the sendEmail function
+        if (process.env.NODE_ENV === 'production') {
+            const resetLink = `${process.env.APP_URL}/reset-password/${token}`;
+            await sendEmail(
+                user.email,
+                'Password Reset Request',
+                `
                 <h1>Password Reset Request</h1>
                 <p>Click the link below to reset your password. This link will expire in 1 hour.</p>
                 <a href="${resetLink}">Reset Password</a>
                 <p>If you didn't request this, please ignore this email.</p>
-            `
-        });
+                `
+            );
+        }
 
-        res.json({ success: true, message: 'Password reset instructions sent' });
+        res.json({ 
+            success: true, 
+            message: 'Password reset instructions sent',
+            // Include token in development for testing
+            ...(process.env.NODE_ENV !== 'production' && { token })
+        });
     } catch (error) {
         console.error('Password reset request error:', error);
         res.status(500).json({ error: 'Failed to process reset request' });
