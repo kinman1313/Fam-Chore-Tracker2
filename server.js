@@ -741,10 +741,13 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ error: 'Username already exists' });
         }
 
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
         // Insert new user
         const result = await db.run(
             'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-            [username, password, role || 'child']
+            [username, hashedPassword, role || 'child']
         );
 
         res.json({ 
