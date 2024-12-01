@@ -1029,8 +1029,30 @@ app.use((req, res, next) => {
 app.use('/css', express.static(path.join(__dirname, 'public/css'), {
     setHeaders: (res, path) => {
         res.setHeader('Content-Type', 'text/css');
+        // Add cache control for better performance
+        res.setHeader('Cache-Control', 'public, max-age=31557600');
     }
 }));
+
+// Add error handling for static files
+app.use((err, req, res, next) => {
+    if (err.code === 'ENOENT') {
+        console.error('Static file not found:', req.url);
+        return res.status(404).send('File not found');
+    }
+    next(err);
+});
+
+// Add logging for static file requests
+app.use((req, res, next) => {
+    if (req.url.startsWith('/css/')) {
+        console.log('Static file request:', {
+            url: req.url,
+            type: req.headers['content-type']
+        });
+    }
+    next();
+});
 
 // Add error handling middleware
 app.use((err, req, res, next) => {

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parent Dashboard - Family Chore Tracker</title>
-    <link rel="stylesheet" href="/css/styles.css">
-    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/styles.css" type="text/css">
+    <link rel="stylesheet" href="/css/components.css" type="text/css">
     <script>
         // Check if styles are loaded
         window.onload = function() {
@@ -61,6 +61,13 @@
 
             // Rest of your existing script...
         });
+
+        // Add this to verify CSS loading
+        window.onload = function() {
+            console.log('Page loaded, checking styles...');
+            const styles = document.styleSheets;
+            console.log('Loaded stylesheets:', styles.length);
+        }
     </script>
 </head>
 <body>
