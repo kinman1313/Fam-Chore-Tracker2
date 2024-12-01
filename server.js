@@ -130,41 +130,51 @@ app.post('/login', async (req, res) => {
         console.log('2. User found:', user);
 
         if (!user) {
-            console.log('3a. User not found');
             return res.render('login', { error: 'Invalid credentials', success: null });
         }
 
-        console.log('3b. Checking password...');
         const validPassword = await bcrypt.compare(password, user.password);
-        console.log('4. Password valid:', validPassword);
+        console.log('3. Password comparison:', {
+            inputPassword: password,
+            hashedPassword: user.password,
+            isValid: validPassword
+        });
 
         if (!validPassword) {
-            console.log('5a. Invalid password');
             return res.render('login', { error: 'Invalid credentials', success: null });
         }
 
-        console.log('5b. Setting session...');
-        req.session.userId = user.id;
-        req.session.userRole = user.role;
-        req.session.username = user.username;
+        // Create a clean session without flash messages
+        req.session.regenerate((err) => {
+            if (err) {
+                console.error('Session regeneration error:', err);
+                return res.render('login', { error: 'Login error', success: null });
+            }
 
-        console.log('6. Session set:', req.session);
+            // Set only the necessary session data
+            req.session.userId = user.id;
+            req.session.userRole = user.role;
+            req.session.username = user.username;
 
-        console.log('7. Checking role:', user.role);
-        if (user.role === 'parent') {
-            console.log('8a. Redirecting to parent dashboard...');
-            res.redirect('/parent-dashboard');
-        } else {
-            console.log('8b. Redirecting to child dashboard...');
-            res.redirect('/child-dashboard');
-        }
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    return res.render('login', { error: 'Login error', success: null });
+                }
+
+                console.log('4. Clean session created:', {
+                    userId: req.session.userId,
+                    userRole: req.session.userRole,
+                    username: req.session.username
+                });
+
+                return res.redirect('/parent-dashboard');
+            });
+        });
 
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).render('login', { 
-            error: 'An error occurred during login. Please try again.', 
-            success: null 
-        });
+        return res.render('login', { error: 'Server error', success: null });
     }
 });
 

@@ -437,10 +437,29 @@ const verifyDatabase = () => {
 // Call this after database initialization
 verifyDatabase();
 
+// Add this function to reset a user's password
+const resetUserPassword = async (username, newPassword) => {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    return new Promise((resolve, reject) => {
+        db.run(
+            'UPDATE users SET password = ? WHERE username = ?',
+            [hashedPassword, username],
+            function(err) {
+                if (err) {
+                    console.error('Password reset error:', err);
+                    reject(err);
+                    resolve(this.changes > 0);
+                }
+            }
+        );
+    });
+};
+
 module.exports = {
     db,
     initializeDatabase,
     userOperations,
     choreOperations,
-    verifyUserRole
+    verifyUserRole,
+    resetUserPassword
 };
