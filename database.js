@@ -416,6 +416,27 @@ const verifyUserRole = async (username) => {
     });
 };
 
+// Add this to your database initialization
+const verifyDatabase = () => {
+    db.get("SELECT * FROM users WHERE role = 'parent' LIMIT 1", [], (err, row) => {
+        if (err) {
+            console.error('Database verification error:', err);
+        } else {
+            console.log('Found parent user:', row ? 'Yes' : 'No');
+            if (row) {
+                console.log('Parent user details:', {
+                    id: row.id,
+                    username: row.username,
+                    role: row.role
+                });
+            }
+        }
+    });
+};
+
+// Call this after database initialization
+verifyDatabase();
+
 module.exports = {
     db,
     initializeDatabase,

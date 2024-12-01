@@ -124,35 +124,46 @@ app.get('/login', (req, res) => {
 app.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        console.log('Login attempt for:', username);
+        console.log('1. Login attempt for:', username);
 
         const user = await userOperations.findByUsername(username);
-        
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.render('login', { 
-                error: 'Invalid username or password',
-                success: null
-            });
+        console.log('2. User found:', user);
+
+        if (!user) {
+            console.log('3a. User not found');
+            return res.render('login', { error: 'Invalid credentials', success: null });
         }
 
-        // Clear any existing session
-        req.session.destroy(() => {
-            // Create new session
-            req.session = {
-                userId: user.id,
-                userRole: user.role,
-                username: user.username
-            };
+        console.log('3b. Checking password...');
+        const validPassword = await bcrypt.compare(password, user.password);
+        console.log('4. Password valid:', validPassword);
 
-            console.log('New session created:', req.session);
+        if (!validPassword) {
+            console.log('5a. Invalid password');
+            return res.render('login', { error: 'Invalid credentials', success: null });
+        }
+
+        console.log('5b. Setting session...');
+        req.session.userId = user.id;
+        req.session.userRole = user.role;
+        req.session.username = user.username;
+
+        console.log('6. Session set:', req.session);
+
+        console.log('7. Checking role:', user.role);
+        if (user.role === 'parent') {
+            console.log('8a. Redirecting to parent dashboard...');
             res.redirect('/parent-dashboard');
-        });
+        } else {
+            console.log('8b. Redirecting to child dashboard...');
+            res.redirect('/child-dashboard');
+        }
 
     } catch (error) {
         console.error('Login error:', error);
-        res.render('login', { 
-            error: 'An error occurred during login',
-            success: null
+        res.status(500).render('login', { 
+            error: 'An error occurred during login. Please try again.', 
+            success: null 
         });
     }
 });
@@ -1010,3 +1021,20 @@ app.use('/css', express.static(path.join(__dirname, 'public/css'), {
         res.setHeader('Content-Type', 'text/css');
     }
 }));
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Global error:', err);
+    res.status(500).render('error', { 
+        error: 'Something went wrong! Please try again.' 
+    });
+});
+
+// Add a test route to verify session
+app.get('/test-session', (req, res) => {
+    console.log('Current session:', req.session);
+    res.json({ 
+        session: req.session,
+        sessionID: req.sessionID
+    });
+});
