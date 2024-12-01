@@ -197,108 +197,101 @@ startServer().catch(error => {
     process.exit(1);
 });
 
-// Home route
+// Add this after your session configuration and before routes
+// Authentication Middleware
+const authenticateUser = (req, res, next) => {
+    // Check if user is authenticated
+    if (req.session && req.session.userId) {
+        // Add user data to locals for template access
+        res.locals.userId = req.session.userId;
+        res.locals.username = req.session.username;
+        res.locals.userRole = req.session.userRole;
+        res.locals.isAuthenticated = true;
+        next();
+    } else {
+        // Redirect to login if not authenticated
+        res.redirect('/login');
+    }
+};
+
+// Session debugging middleware
+app.use((req, res, next) => {
+    console.log('Session Debug:', {
+        sessionId: req.sessionID,
+        userId: req.session?.userId,
+        username: req.session?.username,
+        userRole: req.session?.userRole,
+        path: req.path
+    });
+    next();
+});
+
+// Routes that don't require authentication
 app.get('/', (req, res) => {
     if (req.session.userId) {
-        res.redirect('/admin'); // Redirect logged-in users to dashboard
+        res.redirect('/admin');
     } else {
-        res.redirect('/login'); // Redirect others to login
+        res.redirect('/login');
     }
 });
 
-// Login route
 app.get('/login', (req, res) => {
     if (req.session.userId) {
         res.redirect('/admin');
-        return;
-    }
-    res.render('login');
-});
-
-// Admin/Dashboard route
-app.get('/admin', authenticateUser, (req, res) => {
-    // Ensure we have all required session data
-    if (!req.session.userRole) {
-        console.error('User role not found in session');
-        return res.redirect('/logout');
-    }
-
-    res.render('admin', {
-        username: req.session.username || 'User',
-        userRole: req.session.userRole || 'user',
-        // Add more default values
-        pageTitle: 'Admin Dashboard',
-        isAuthenticated: true
-    });
-});
-
-// Login POST handler
-app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-    
-    try {
-        const user = await new Promise((resolve, reject) => {
-            db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
-                if (err) reject(err);
-                resolve(row);
-            });
-        });
-        
-        if (!user) {
-            return res.status(401).json({ error: 'Invalid username or password' });
-        }
-
-        const validPassword = await bcrypt.compare(password, user.password);
-        
-        if (!validPassword) {
-            return res.status(401).json({ error: 'Invalid username or password' });
-        }
-
-        req.session.userId = user.id;
-        req.session.userRole = user.role;
-        req.session.username = user.username;
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Login failed' });
+    } else {
+        res.render('login', { error: null });
     }
 });
 
-// Logout route
-app.get('/logout', (req, res) => {
-    req.session.destroy((err) => {
-        if (err) {
-            console.error('Logout error:', err);
-        }
-        res.redirect('/login');
-    });
-});
-
-// Register route
 app.get('/register', (req, res) => {
     if (req.session.userId) {
         res.redirect('/admin');
-        return;
+    } else {
+        res.render('register', { error: null });
     }
-    res.render('register');
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).render('error', { 
-        message: 'Something broke!',
-        error: process.env.NODE_ENV === 'development' ? err : {}
+// Protected routes
+app.get('/admin', authenticateUser, (req, res) => {
+    res.render('admin', {
+        username: req.session.username,
+        userRole: req.session.userRole,
+        pageTitle: 'Admin Dashboard'
     });
+});
+
+// API routes protection
+app.use('/api', authenticateUser, (req, res, next) => {
+    // Additional API-specific security checks
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Application error:', err);
+    if (req.xhr || req.path.startsWith('/api')) {
+        res.status(500).json({ error: 'Internal server error' });
+    } else {
+        res.status(500).render('error', { 
+            message: 'Something went wrong',
+            error: process.env.NODE_ENV === 'development' ? err : {}
+        });
+    }
 });
 
 // 404 handler
 app.use((req, res) => {
-    res.status(404).render('error', { 
-        message: 'Page not found',
-        error: { status: 404 }
-    });
+    if (req.xhr || req.path.startsWith('/api')) {
+        res.status(404).json({ error: 'Not found' });
+    } else {
+        res.status(404).render('error', { 
+            message: 'Page not found',
+            error: { status: 404 }
+        });
+    }
 });
 
 // Registration API endpoint
