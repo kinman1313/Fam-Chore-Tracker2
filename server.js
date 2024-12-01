@@ -296,26 +296,28 @@ app.use((req, res) => {
 
 // Registration API endpoint
 app.post('/api/register', async (req, res) => {
+    console.log('Registration attempt:', req.body); // Debug log
+
     const { username, password, role } = req.body;
-    
-    // Input validation
+
+    // Validation
     if (!username || !password || !role) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'All fields are required' 
+        return res.status(400).json({
+            success: false,
+            error: 'All fields are required'
         });
     }
 
-    // Role validation
+    // Validate role
     if (!['parent', 'child'].includes(role)) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Invalid role specified' 
+        return res.status(400).json({
+            success: false,
+            error: 'Invalid role specified'
         });
     }
 
     try {
-        // Check if username already exists
+        // Check if username exists
         const existingUser = await new Promise((resolve, reject) => {
             db.get('SELECT id FROM users WHERE username = ?', [username], (err, row) => {
                 if (err) reject(err);
@@ -324,9 +326,9 @@ app.post('/api/register', async (req, res) => {
         });
 
         if (existingUser) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Username already exists' 
+            return res.status(400).json({
+                success: false,
+                error: 'Username already exists'
             });
         }
 
@@ -336,7 +338,7 @@ app.post('/api/register', async (req, res) => {
         // Insert new user
         await new Promise((resolve, reject) => {
             db.run(
-                'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                'INSERT INTO users (username, password, role, created_at) VALUES (?, ?, ?, datetime("now"))',
                 [username, hashedPassword, role],
                 function(err) {
                     if (err) reject(err);
@@ -345,20 +347,32 @@ app.post('/api/register', async (req, res) => {
             );
         });
 
-        // Log success
-        console.log('New user registered:', username, role);
+        console.log('User registered successfully:', username); // Debug log
 
-        // Return success response
-        res.json({ 
-            success: true, 
-            message: 'Registration successful' 
+        // Log them in automatically
+        const newUser = await new Promise((resolve, reject) => {
+            db.get('SELECT id, username, role FROM users WHERE username = ?', [username], (err, row) => {
+                if (err) reject(err);
+                resolve(row);
+            });
+        });
+
+        // Set session data
+        req.session.userId = newUser.id;
+        req.session.username = newUser.username;
+        req.session.userRole = newUser.role;
+
+        // Return success
+        res.json({
+            success: true,
+            message: 'Registration successful'
         });
 
     } catch (error) {
         console.error('Registration error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Registration failed' 
+        res.status(500).json({
+            success: false,
+            error: 'Registration failed'
         });
     }
 });

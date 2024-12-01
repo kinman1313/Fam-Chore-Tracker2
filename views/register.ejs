@@ -6,29 +6,34 @@
 </head>
 <body class="bg-light">
     <div class="container mt-5">
-        <div class="card shadow">
-            <div class="card-body">
-                <h2 class="text-center mb-4">Create Account</h2>
-                <form id="registerForm">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h2 class="text-center mb-4">Create Account</h2>
+                        <div id="errorAlert" class="alert alert-danger d-none"></div>
+                        <form id="registerForm">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="role" class="form-label">Role</label>
+                                <select class="form-control" id="role" name="role" required>
+                                    <option value="parent">Parent</option>
+                                    <option value="child">Child</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Register</button>
+                        </form>
+                        <div class="text-center mt-3">
+                            <a href="/login">Already have an account? Login</a>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="role" class="form-label">Role</label>
-                        <select class="form-control" id="role" name="role" required>
-                            <option value="parent">Parent</option>
-                            <option value="child">Child</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Register</button>
-                </form>
-                <div class="text-center mt-3">
-                    <a href="/login">Already have an account? Login</a>
                 </div>
             </div>
         </div>
@@ -37,11 +42,14 @@
     <script>
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'alert alert-danger mt-3 d-none';
-            e.target.appendChild(errorDiv);
-
+            const errorAlert = document.getElementById('errorAlert');
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            
             try {
+                // Disable submit button
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registering...';
+                
                 const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: {
@@ -58,24 +66,26 @@
                 
                 if (data.success) {
                     // Show success message
-                    const successDiv = document.createElement('div');
-                    successDiv.className = 'alert alert-success mt-3';
-                    successDiv.textContent = 'Registration successful! Redirecting to login...';
-                    e.target.appendChild(successDiv);
+                    errorAlert.className = 'alert alert-success';
+                    errorAlert.textContent = 'Registration successful! Redirecting...';
+                    errorAlert.style.display = 'block';
                     
-                    // Redirect after a short delay
+                    // Redirect to admin dashboard
                     setTimeout(() => {
-                        window.location.href = '/login';
-                    }, 2000);
+                        window.location.href = '/admin';
+                    }, 1500);
                 } else {
-                    // Show error message
-                    errorDiv.textContent = data.error || 'Registration failed';
-                    errorDiv.classList.remove('d-none');
+                    throw new Error(data.error || 'Registration failed');
                 }
             } catch (error) {
-                console.error('Registration error:', error);
-                errorDiv.textContent = 'Registration failed. Please try again.';
-                errorDiv.classList.remove('d-none');
+                // Show error message
+                errorAlert.className = 'alert alert-danger';
+                errorAlert.textContent = error.message;
+                errorAlert.style.display = 'block';
+                
+                // Reset submit button
+                submitButton.disabled = false;
+                submitButton.textContent = 'Register';
             }
         });
     </script>
