@@ -17,15 +17,19 @@ app.use(express.static('public'));
 app.use('/css', express.static(path.join(__dirname, 'node_modules/bootstrap/dist/css')));
 app.use('/js', express.static(path.join(__dirname, 'node_modules/bootstrap/dist/js')));
 
-// Simple session setup
+// Session configuration
 app.use(session({
-    secret: 'your-secret-key',
-    resave: false,
-    saveUninitialized: false,
     store: new SQLiteStore({
         db: 'sessions.db',
-        dir: '/var/data'
-    })
+        dir: './db'  // Make sure this directory exists
+    }),
+    secret: 'your-secret-key',  // Change this to a secure secret
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 1000 * 60 * 60 * 24 // 24 hours
+    }
 }));
 
 // Database setup
