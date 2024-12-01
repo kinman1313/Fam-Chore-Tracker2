@@ -77,24 +77,38 @@ function initializeDatabase() {
     
     // Ensure the data directory exists in production
     if (process.env.NODE_ENV === 'production') {
-        if (!fs.existsSync('/var/data')) {
+        const dataDir = '/var/data';
+        if (!fs.existsSync(dataDir)) {
             try {
-                fs.mkdirSync('/var/data', { recursive: true });
-                console.log('Created /var/data directory');
+                fs.mkdirSync(dataDir, { recursive: true, mode: 0o755 });
+                console.log('Created data directory:', dataDir);
             } catch (error) {
                 console.error('Error creating data directory:', error);
+                // Continue execution - the error might be due to permissions
+                // and the directory might already exist in the container
             }
+        }
+        
+        // Ensure we have write permissions
+        try {
+            fs.accessSync(dataDir, fs.constants.W_OK);
+            console.log('Data directory is writable');
+        } catch (error) {
+            console.error('Data directory is not writable:', error);
         }
     }
 
     // Create/connect to database
     const db = new sqlite3.Database(dbPath, (err) => {
         if (err) {
-            console.error('Error connecting to database:', err);
-            return;
+            console.error('Database connection error:', err);
+            console.error('Database path:', dbPath);
+            console.error('Current working directory:', process.cwd());
+            console.error('Node environment:', process.env.NODE_ENV);
+            throw err; // This will help identify issues in the Render logs
         }
-        console.log('Connected to database');
-
+        console.log('Connected to database at:', dbPath);
+        
         // Run initialization SQL
         db.exec(initSQL, (err) => {
             if (err) {
@@ -112,7 +126,7 @@ function initializeDatabase() {
 
                 if (!row) {
                     // Create default admin user if none exists
-                    const bcrypt = require('bcrypt');
+                    const bcrypt = require('bcryptjs');
                     bcrypt.hash('admin123', 10, (err, hash) => {
                         if (err) {
                             console.error('Error hashing password:', err);
@@ -157,8 +171,8 @@ function initializeDatabase() {
             });
         });
     });
-
     return db;
 }
 
 module.exports = initializeDatabase;
+
