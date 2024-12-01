@@ -109,7 +109,13 @@ async function startServer() {
         await initializeDatabase();
         
         // Create default admin user if none exists
-        const admin = await db.get('SELECT * FROM users WHERE role = ?', ['parent']);
+        const admin = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM users WHERE role = ?', ['parent'], (err, row) => {
+                if (err) reject(err);
+                resolve(row);
+            });
+        });
+
         if (!admin) {
             const hashedPassword = await bcrypt.hash('admin123', 10);
             await db.run(
