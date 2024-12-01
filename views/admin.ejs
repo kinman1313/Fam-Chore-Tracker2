@@ -1,265 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parent Dashboard - Family Chore Tracker</title>
-    <link rel="stylesheet" href="/css/styles.css" type="text/css">
-    <link rel="stylesheet" href="/css/components.css" type="text/css">
-    <script>
-        // Check if styles are loaded
-        window.onload = function() {
-            console.log('Page fully loaded');
-        };
-
-        // Add error handling for script loading
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            console.error('Script error:', { msg, url, lineNo, columnNo, error });
-            return false;
-        };
-
-        // Ensure DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded');
-            
-            // Initialize modals
-            const addChoreModal = document.getElementById('addChoreModal');
-            const addMemberModal = document.getElementById('addMemberModal');
-
-            // Modal functions with error handling
-            window.showAddChoreModal = function() {
-                try {
-                    addChoreModal.style.display = 'block';
-                } catch (error) {
-                    console.error('Error showing chore modal:', error);
-                }
-            };
-
-            window.hideAddChoreModal = function() {
-                try {
-                    addChoreModal.style.display = 'none';
-                } catch (error) {
-                    console.error('Error hiding chore modal:', error);
-                }
-            };
-
-            window.showAddMemberModal = function() {
-                try {
-                    addMemberModal.style.display = 'block';
-                } catch (error) {
-                    console.error('Error showing member modal:', error);
-                }
-            };
-
-            window.hideAddMemberModal = function() {
-                try {
-                    addMemberModal.style.display = 'none';
-                } catch (error) {
-                    console.error('Error hiding member modal:', error);
-                }
-            };
-
-            // Rest of your existing script...
-        });
-
-        // Add this to verify CSS loading
-        window.onload = function() {
-            console.log('Page loaded, checking styles...');
-            const styles = document.styleSheets;
-            console.log('Loaded stylesheets:', styles.length);
+    <title>Parent Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
         }
-    </script>
+        .dashboard {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .logout-form {
+            display: inline;
+        }
+        .logout-button {
+            padding: 8px 16px;
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-container">
-            <div class="nav-brand">Family Chore Tracker</div>
-            <div class="nav-menu">
-                <span class="nav-user">Welcome, <%= username %></span>
-                <form action="/logout" method="POST" class="nav-item">
-                    <button type="submit" class="button button-secondary">Logout</button>
-                </form>
-            </div>
-        </div>
-    </nav>
-
-    <main class="dashboard-container">
-        <div class="cards-grid">
-            <!-- Stats Cards -->
-            <div class="stat-card">
-                <div class="stat-icon" style="background: #4A90E2;">📋</div>
-                <div class="stat-content">
-                    <h3 class="stat-value">0</h3>
-                    <p class="stat-label">Total Chores</p>
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon" style="background: #2ECC71;">✅</div>
-                <div class="stat-content">
-                    <h3 class="stat-value">0</h3>
-                    <p class="stat-label">Completed Today</p>
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon" style="background: #F1C40F;">⏳</div>
-                <div class="stat-content">
-                    <h3 class="stat-value">0</h3>
-                    <p class="stat-label">Pending</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chore Management Section -->
-        <section class="chore-section">
-            <div class="section-header">
-                <h2>Manage Chores</h2>
-                <button class="button button-primary" onclick="showAddChoreModal()">
-                    Add New Chore
-                </button>
-            </div>
-
-            <!-- Chores List -->
-            <div class="chores-list">
-                <!-- This will be populated dynamically -->
-                <p class="no-chores-message">No chores assigned yet.</p>
-            </div>
-        </section>
-
-        <!-- Family Members Section -->
-        <section class="family-section">
-            <div class="section-header">
-                <h2>Family Members</h2>
-                <button class="button button-primary" onclick="showAddMemberModal()">
-                    Add Family Member
-                </button>
-            </div>
-
-            <div class="family-list">
-                <!-- This will be populated dynamically -->
-                <p class="no-members-message">No family members added yet.</p>
-            </div>
-        </section>
-    </main>
-
-    <!-- Add Chore Modal -->
-    <div id="addChoreModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h2>Add New Chore</h2>
-            <form id="addChoreForm" action="/add-chore" method="POST">
-                <div class="form-group">
-                    <label for="choreName">Chore Name</label>
-                    <input type="text" id="choreName" name="choreName" required>
-                </div>
-                <div class="form-group">
-                    <label for="assignTo">Assign To</label>
-                    <select id="assignTo" name="assignTo" required>
-                        <option value="">Select family member</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="dueDate">Due Date</label>
-                    <input type="date" id="dueDate" name="dueDate" required>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="button button-secondary" onclick="hideAddChoreModal()">Cancel</button>
-                    <button type="submit" class="button button-primary">Add Chore</button>
-                </div>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Welcome, <%= username %></h1>
+            <form class="logout-form" action="/logout" method="POST">
+                <button class="logout-button" type="submit">Logout</button>
             </form>
         </div>
+        <p>Role: <%= role %></p>
     </div>
-
-    <!-- Add Family Member Modal -->
-    <div id="addMemberModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h2>Add Family Member</h2>
-            <form id="addMemberForm">
-                <div class="form-group">
-                    <label for="memberUsername">Username</label>
-                    <input type="text" id="memberUsername" name="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="memberPassword">Password</label>
-                    <input type="password" id="memberPassword" name="password" required>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="button button-secondary" onclick="hideAddMemberModal()">Cancel</button>
-                    <button type="submit" class="button button-primary">Add Member</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-        if (event.target.className === 'modal') {
-            event.target.style.display = 'none';
-        }
-    }
-
-    // Add Member Form Submission
-    document.getElementById('addMemberForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const formData = {
-            username: document.getElementById('memberUsername').value,
-            password: document.getElementById('memberPassword').value
-        };
-
-        try {
-            const response = await fetch('/add-child', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                alert('Family member added successfully!');
-                document.getElementById('addMemberForm').reset();
-                hideAddMemberModal();
-                // Optionally refresh the family members list
-                loadFamilyMembers();
-            } else {
-                alert(data.error || 'Error adding family member');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error adding family member');
-        }
-    });
-
-    // Function to load family members
-    async function loadFamilyMembers() {
-        try {
-            const response = await fetch('/family-members');
-            const data = await response.json();
-            
-            const familyList = document.querySelector('.family-list');
-            if (data.members && data.members.length > 0) {
-                familyList.innerHTML = data.members.map(member => `
-                    <div class="family-member-card">
-                        <div class="member-info">
-                            <h3>${member.username}</h3>
-                            <p>Role: ${member.role}</p>
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                familyList.innerHTML = '<p class="no-members-message">No family members added yet.</p>';
-            }
-        } catch (error) {
-            console.error('Error loading family members:', error);
-        }
-    }
-
-    // Load family members when page loads
-    document.addEventListener('DOMContentLoaded', loadFamilyMembers);
-    </script>
 </body>
 </html>

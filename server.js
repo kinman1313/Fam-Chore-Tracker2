@@ -1,1097 +1,119 @@
-require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
-const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const bcrypt = require('bcryptjs');
-const { initializeDatabase, userOperations, choreOperations, rewardOperations, db } = require('./database');
-const multer = require('multer');
 const path = require('path');
-const moment = require('moment');
-const { createNotification, getNotifications, markNotificationRead } = require('./notifications');
-const { calculateStats, updateRewardPoints } = require('./statistics');
-
-// Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Middleware setup
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-app.use(cookieParser());
+// Basic middleware
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.set('view engine', 'ejs');
+app.use(express.static('public'));
+
+// Simple session setup
 app.use(session({
-    store: new SQLiteStore({
-        db: 'sessions.db',
-        dir: process.env.NODE_ENV === 'production' ? '/var/data' : '.',
-        table: 'sessions'
-    }),
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    secret: 'your-secret-key',
     resave: false,
     saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000
-    }
+    store: new SQLiteStore({
+        db: 'sessions.db',
+        dir: '/var/data'
+    })
 }));
 
-app.set('trust proxy', 1);
+// Database setup
+const sqlite3 = require('sqlite3').verbose();
+const db = new sqlite3.Database('/var/data/chore_tracker.db');
 
-// Consolidated static file serving
-app.use(express.static('public', {
-    setHeaders: (res, file) => {
-        if (file.endsWith('.css')) {
-            res.setHeader('Content-Type', 'text/css');
-        }
-    }
-}));
-
-// Debug middleware for CSS requests
-app.use((req, res, next) => {
-    if (req.path.endsWith('.css')) {
-        console.log('CSS request:', {
-            path: req.path,
-            contentType: res.getHeader('Content-Type')
-        });
-    }
-    next();
-});
-
-app.set('view engine', 'ejs');
-
-// Authentication Middleware
-const authenticateUser = (req, res, next) => {
-    if (!req.session.user) {
-        return res.redirect('/login');
-    }
-    next();
-};
-
-const authenticateParent = (req, res, next) => {
-    console.log('Checking parent authentication:', {
-        session: req.session,
-        userRole: req.session.userRole
-    });
-
-    if (!req.session.userId) {
-        console.log('No session found');
-        return res.redirect('/login');
-    }
-
-    if (req.session.userRole !== 'parent') {
-        console.log('User is not a parent');
-        return res.redirect('/login');
-    }
-
-    next();
-};
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: './public/uploads/',
-    filename: (req, file, cb) => {
-        cb(null, `${req.session.user.username}-${Date.now()}${path.extname(file.originalname)}`);
-    }
-});
-
-const upload = multer({
-    storage,
-    limits: { fileSize: 5000000 }, // 5MB limit
-    fileFilter: (req, file, cb) => {
-        const filetypes = /jpeg|jpg|png/;
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = filetypes.test(file.mimetype);
-        if (extname && mimetype) {
-            return cb(null, true);
-        }
-        cb(new Error('Images only!'));
-    }
+// Create tables
+db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT,
+        role TEXT,
+        points INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
 });
 
 // Routes
-app.get('/', (req, res) => {
-    res.redirect('/login');
-});
+app.get('/', (req, res) => res.redirect('/login'));
 
 app.get('/login', (req, res) => {
-    if (req.session.user) {
-        return res.redirect('/dashboard');
-    }
     res.render('login', { error: null, success: null });
 });
 
 app.post('/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        console.log('Login attempt for:', username);
+    const { username, password } = req.body;
+    console.log('Login attempt:', username);
 
-        // Make username search case-insensitive
+    try {
         const user = await new Promise((resolve, reject) => {
-            db.get(
-                'SELECT * FROM users WHERE LOWER(username) = LOWER(?)',
-                [username],
-                (err, row) => {
-                    if (err) reject(err);
-                    resolve(row);
-                }
-            );
+            db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
+                if (err) reject(err);
+                resolve(row);
+            });
         });
 
         if (!user) {
-            return res.render('login', { 
-                error: 'Invalid username or password',
-                success: null
-            });
+            return res.render('login', { error: 'Invalid credentials', success: null });
         }
 
-        const validPassword = await bcrypt.compare(password, user.password);
-        
-        if (!validPassword) {
-            return res.render('login', { 
-                error: 'Invalid username or password',
-                success: null
-            });
+        const valid = await bcrypt.compare(password, user.password);
+        if (!valid) {
+            return res.render('login', { error: 'Invalid credentials', success: null });
         }
 
-        // Set clean session
         req.session.userId = user.id;
-        req.session.userRole = user.role;
         req.session.username = user.username;
+        req.session.userRole = user.role;
 
-        return res.redirect('/parent-dashboard');
+        res.redirect('/parent-dashboard');
 
     } catch (error) {
         console.error('Login error:', error);
-        return res.render('login', { 
-            error: 'An error occurred',
-            success: null
-        });
+        res.render('login', { error: 'Server error', success: null });
     }
 });
 
-app.get('/signup', async (req, res) => {
-    try {
-        const children = await userOperations.getAllChildren();
-        res.render('signup', { error: null, children });
-    } catch (error) {
-        console.error('Error loading signup page:', error);
-        res.render('signup', { error: 'Error loading page', children: [] });
+app.get('/parent-dashboard', (req, res) => {
+    if (!req.session.userId) {
+        return res.redirect('/login');
     }
+    res.render('admin', {
+        username: req.session.username,
+        role: req.session.userRole
+    });
 });
 
-app.post('/signup', async (req, res) => {
-    try {
-        const { username, password, role } = req.body;
-        console.log('Signup attempt:', { username, role });
-
-        // Input validation
-        if (!username || !password || !role) {
-            console.log('Missing required fields');
-            return res.render('signup', {
-                error: 'All fields are required',
-                username: username,
-                children: []
-            });
-        }
-
-        // Username validation
-        if (username.length < 3 || !/^[a-zA-Z0-9]+$/.test(username)) {
-            return res.render('signup', {
-                error: 'Username must be at least 3 characters and contain only letters and numbers',
-                username: username,
-                children: []
-            });
-        }
-
-        // Check if user exists
-        const existingUser = await userOperations.findByUsername(username);
-        console.log('Existing user check:', existingUser ? 'Found' : 'Not found');
-
-        if (existingUser) {
-            return res.render('signup', {
-                error: 'Username already exists',
-                username: username,
-                children: []
-            });
-        }
-
-        // Create user with error handling
-        try {
-            const userId = await userOperations.createUser(username, password, role);
-            console.log('User created with ID:', userId);
-            
-            // Redirect to login with success message
-            return res.render('login', {
-                error: null,
-                success: 'Account created successfully! Please log in.'
-            });
-        } catch (createError) {
-            console.error('User creation error:', createError);
-            throw createError;
-        }
-
-    } catch (error) {
-        console.error('Signup error:', error);
-        return res.render('signup', {
-            error: 'Error creating account: ' + error.message,
-            username: req.body.username,
-            children: []
-        });
-    }
-});
-
-app.get('/reset-password', (req, res) => {
-    res.render('reset-password', { error: null, success: null });
-});
-
-app.post('/reset-password', async (req, res) => {
-    try {
-        const { username, newPassword, confirmPassword } = req.body;
-
-        if (newPassword !== confirmPassword) {
-            return res.render('reset-password', {
-                error: 'Passwords do not match',
-                username
-            });
-        }
-
-        const user = await userOperations.findByUsername(username);
-        if (!user) {
-            return res.render('reset-password', {
-                error: 'Username not found',
-                username
-            });
-        }
-
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await userOperations.updatePassword(username, hashedPassword);
-
-        // Redirect to login with success message
-        req.session.flashMessage = {
-            type: 'success',
-            text: 'Password successfully reset. Please login with your new password.'
-        };
-        res.redirect('/login');
-
-    } catch (error) {
-        console.error('Password reset error:', error);
-        res.render('reset-password', {
-            error: 'An error occurred while resetting your password',
-            username: req.body.username
-        });
-    }
-});
-
-app.get('/dashboard', authenticateUser, async (req, res) => {
-    try {
-        const chores = await choreOperations.getChoresForUser(
-            req.session.user.id,
-            req.session.user.role
-        );
-        
-        const children = req.session.user.role === 'parent' 
-            ? await userOperations.getAllChildren()
-            : [];
-        
-        res.render(req.session.user.role === 'parent' ? 'admin' : 'child', {
-            chores,
-            children,
-            username: req.session.user.username
-        });
-    } catch (error) {
-        console.error('Dashboard error:', error);
-        res.status(500).send('Error loading dashboard');
-    }
-});
-
-app.post('/add-chore', authenticateParent, async (req, res) => {
-    const { choreName, assignedTo } = req.body;
-    
-    try {
-        await choreOperations.create(
-            choreName,
-            assignedTo,
-            req.session.user.id
-        );
-        res.redirect('/dashboard');
-    } catch (error) {
-        console.error('Error adding chore:', error);
-        res.status(500).json({ error: 'Error adding chore' });
-    }
-});
-
-app.post('/toggle-chore/:id', authenticateUser, async (req, res) => {
-    const choreId = parseInt(req.params.id);
-    
-    try {
-        const result = await choreOperations.toggleCompletion(
-            choreId,
-            req.session.user.id,
-            req.session.user.role
-        );
-        res.json(result);
-    } catch (error) {
-        console.error('Error toggling chore:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.delete('/delete-chore/:id', authenticateParent, async (req, res) => {
-    const choreId = parseInt(req.params.id);
-    
-    try {
-        await choreOperations.delete(choreId);
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error deleting chore:', error);
-        res.status(500).json({ error: 'Error deleting chore' });
-    }
-});
-
-app.get('/logout', (req, res) => {
+app.post('/logout', (req, res) => {
     req.session.destroy(() => {
         res.redirect('/login');
     });
 });
 
-// Profile Routes
-app.get('/profile', authenticateUser, async (req, res) => {
+// Create test user
+app.get('/setup', async (req, res) => {
     try {
-        const user = await userOperations.getFullProfile(req.session.user.id);
-        const stats = await calculateStats(req.session.user.id);
-        const rewards = await userOperations.getUserRewards(req.session.user.id);
-        
-        res.render('profile', {
-            user,
-            stats,
-            rewards,
-            moment
-        });
-    } catch (error) {
-        console.error('Profile error:', error);
-        res.status(500).send('Error loading profile');
-    }
-});
-
-app.post('/profile/update', authenticateUser, upload.single('avatar'), async (req, res) => {
-    try {
-        const updates = {
-            displayName: req.body.displayName,
-            bio: req.body.bio,
-            avatar: req.file ? `/uploads/${req.file.filename}` : undefined
-        };
-        
-        await userOperations.updateProfile(req.session.user.id, updates);
-        res.redirect('/profile');
-    } catch (error) {
-        console.error('Profile update error:', error);
-        res.status(500).send('Error updating profile');
-    }
-});
-
-// Rewards System
-app.post('/rewards/redeem/:rewardId', authenticateUser, async (req, res) => {
-    try {
-        const reward = await userOperations.getReward(req.params.rewardId);
-        const userPoints = await userOperations.getUserPoints(req.session.user.id);
-        
-        if (userPoints < reward.pointsCost) {
-            return res.status(400).json({ error: 'Insufficient points' });
-        }
-        
-        await userOperations.redeemReward(req.session.user.id, reward.id);
-        await createNotification({
-            userId: req.session.user.id,
-            type: 'reward_redeemed',
-            message: `You redeemed ${reward.name} for ${reward.pointsCost} points!`
-        });
-        
-        res.json({ success: true, remainingPoints: userPoints - reward.pointsCost });
-    } catch (error) {
-        console.error('Reward redemption error:', error);
-        res.status(500).json({ error: 'Error redeeming reward' });
-    }
-});
-
-// Parent Reward Management
-app.post('/rewards/create', authenticateParent, async (req, res) => {
-    try {
-        const { name, description, pointsCost } = req.body;
-        await userOperations.createReward({ name, description, pointsCost });
-        res.redirect('/dashboard');
-    } catch (error) {
-        console.error('Reward creation error:', error);
-        res.status(500).send('Error creating reward');
-    }
-});
-
-// Notifications
-app.get('/notifications', authenticateUser, async (req, res) => {
-    try {
-        const notifications = await getNotifications(req.session.user.id);
-        res.json(notifications);
-    } catch (error) {
-        console.error('Notifications error:', error);
-        res.status(500).json({ error: 'Error loading notifications' });
-    }
-});
-
-app.post('/notifications/read/:id', authenticateUser, async (req, res) => {
-    try {
-        await markNotificationRead(req.params.id);
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Notification update error:', error);
-        res.status(500).json({ error: 'Error updating notification' });
-    }
-});
-
-// Statistics and Reports
-app.get('/statistics', authenticateUser, async (req, res) => {
-    try {
-        const timeframe = req.query.timeframe || 'week';
-        const stats = await calculateStats(req.session.user.id, timeframe);
-        res.json(stats);
-    } catch (error) {
-        console.error('Statistics error:', error);
-        res.status(500).json({ error: 'Error loading statistics' });
-    }
-});
-
-// Enhanced Chore Routes
-app.post('/chore/complete/:id', authenticateUser, async (req, res) => {
-    try {
-        const { proof } = req.body; // Optional completion proof
-        const result = await choreOperations.completeChore(
-            req.params.id,
-            req.session.user.id,
-            proof
-        );
-        
-        // Update points and create notification
-        await updateRewardPoints(req.session.user.id, result.pointsEarned);
-        await createNotification({
-            userId: result.parentId,
-            type: 'chore_completed',
-            message: `${req.session.user.username} completed ${result.choreName}`
-        });
-        
-        res.json({ 
-            success: true, 
-            pointsEarned: result.pointsEarned 
-        });
-    } catch (error) {
-        console.error('Chore completion error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.post('/chore/verify/:id', authenticateParent, async (req, res) => {
-    try {
-        const { verified } = req.body;
-        const result = await choreOperations.verifyChore(
-            req.params.id,
-            verified
-        );
-        
-        // Create notification for child
-        await createNotification({
-            userId: result.childId,
-            type: verified ? 'chore_verified' : 'chore_rejected',
-            message: verified 
-                ? `Your chore "${result.choreName}" was verified!`
-                : `Your chore "${result.choreName}" needs attention`
-        });
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Chore verification error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Recurring Chores
-app.post('/chore/recurring', authenticateParent, async (req, res) => {
-    try {
-        const { 
-            choreName, 
-            assignedTo, 
-            frequency, 
-            startDate,
-            endDate 
-        } = req.body;
-        
-        await choreOperations.createRecurringChore({
-            name: choreName,
-            assignedTo,
-            frequency,
-            startDate: new Date(startDate),
-            endDate: endDate ? new Date(endDate) : null,
-            createdBy: req.session.user.id
-        });
-        
-        res.redirect('/dashboard');
-    } catch (error) {
-        console.error('Recurring chore creation error:', error);
-        res.status(500).send('Error creating recurring chore');
-    }
-});
-
-// Family Calendar
-app.get('/calendar', authenticateUser, async (req, res) => {
-    try {
-        const month = parseInt(req.query.month) || new Date().getMonth();
-        const year = parseInt(req.query.year) || new Date().getFullYear();
-        
-        const events = await choreOperations.getCalendarEvents(
-            req.session.user.id,
-            req.session.user.role,
-            month,
-            year
-        );
-        
-        res.json(events);
-    } catch (error) {
-        console.error('Calendar error:', error);
-        res.status(500).json({ error: 'Error loading calendar' });
-    }
-});
-
-// Request password reset
-app.post('/request-reset', async (req, res) => {
-    try {
-        const { username } = req.body;
-        const user = await userOperations.findByUsername(username);
-        
-        if (user) {
-            const resetToken = await userOperations.createPasswordReset(user.id);
-            
-            // In a real application, you would send this via email
-            // For now, we'll just send it in the response
-            res.json({ 
-                message: 'Password reset link generated',
-                resetLink: `/reset-password/${resetToken}`
-            });
-        } else {
-            // Don't reveal if user exists or not
-            res.json({ 
-                message: 'If an account exists with this username, a password reset link will be sent.'
-            });
-        }
-    } catch (error) {
-        console.error('Password reset request error:', error);
-        res.status(500).json({ error: 'Error processing reset request' });
-    }
-});
-
-// Reset password form
-app.get('/reset-password/:token', async (req, res) => {
-    try {
-        const resetInfo = await userOperations.verifyResetToken(req.params.token);
-        if (resetInfo) {
-            res.render('reset-password', { 
-                token: req.params.token,
-                username: resetInfo.username
-            });
-        } else {
-            res.status(400).render('error', { 
-                message: 'Invalid or expired reset token'
-            });
-        }
-    } catch (error) {
-        console.error('Reset form error:', error);
-        res.status(500).render('error', { 
-            message: 'Error loading reset form'
-        });
-    }
-});
-
-// Process password reset
-app.post('/reset-password/:token', async (req, res) => {
-    try {
-        const { password, confirmPassword } = req.body;
-        const { token } = req.params;
-
-        if (password !== confirmPassword) {
-            return res.status(400).json({ 
-                error: 'Passwords do not match'
-            });
-        }
-
-        const success = await userOperations.resetPassword(token, password);
-        if (success) {
-            res.json({ 
-                message: 'Password reset successful'
-            });
-        } else {
-            res.status(400).json({ 
-                error: 'Unable to reset password'
-            });
-        }
-    } catch (error) {
-        console.error('Password reset error:', error);
-        res.status(500).json({ 
-            error: 'Error resetting password'
-        });
-    }
-});
-
-// TEMPORARY ROUTE - REMOVE AFTER USE
-app.get('/temp-reset-passwords', async (req, res) => {
-    try {
-        console.log('Starting password reset process...');
-        
-        const defaultPasswords = {
-            'Kelli': 'kelli123',
-            'Kevin': 'kevin123',
-            'Bodhi': 'bodhi123',
-            'Holden': 'holden123'
-        };
-
-        // First verify database connection
-        await new Promise((resolve, reject) => {
-            userOperations.findByUsername('Kevin')
-                .then(user => {
-                    console.log('Database connection verified');
-                    resolve();
-                })
-                .catch(err => {
-                    console.error('Database check error:', err);
-                    reject(err);
-                });
-        });
-
-        // Reset each password
-        for (const [username, password] of Object.entries(defaultPasswords)) {
-            try {
-                console.log(`Processing user: ${username}`);
-                const hashedPassword = await bcrypt.hash(password, 10);
-                
-                await new Promise((resolve, reject) => {
-                    userOperations.updatePassword(username, hashedPassword)
-                        .then(() => {
-                            console.log(`Updated password for ${username}`);
-                            resolve();
-                        })
-                        .catch(err => {
-                            console.error(`Error updating ${username}:`, err);
-                            reject(err);
-                        });
-                });
-            } catch (userError) {
-                console.error(`Failed to process user ${username}:`, userError);
-                throw userError;
-            }
-        }
-
-        console.log('Password reset completed successfully');
-        res.send('Passwords reset successfully. Check server logs for details.');
-
-    } catch (error) {
-        console.error('Password reset failed:', error);
-        res.status(500).send(`Error resetting passwords: ${error.message}`);
-    }
-});
-
-// Error handling middleware (place this before app.listen)
-app.use((err, req, res, next) => {
-    console.error('Server error:', err);
-    res.status(500).render('error', {
-        message: 'An error occurred',
-        error: process.env.NODE_ENV === 'development' ? err : {}
-    });
-});
-
-// Initialize database
-initializeDatabase()
-    .then(() => {
-        console.log('Database initialized successfully');
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
-    })
-    .catch(err => {
-        console.error('Failed to initialize database:', err);
-        process.exit(1);
-    });
-
-// Add these routes if not present
-app.post('/chores/:id/toggle', async (req, res) => {
-    try {
-        const result = await choreOperations.toggleCompletion(
-            req.params.id,
-            req.user.id,
-            req.user.role
-        );
-        res.json({ success: true, ...result });
-    } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/rewards/:id/redeem', async (req, res) => {
-    try {
-        const result = await rewardOperations.redeem(
-            req.params.id,
-            req.user.id
-        );
-        res.json({ success: true, ...result });
-    } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
-    }
-});
-
-// Add these route handlers if they don't exist
-app.get('/parent-dashboard', authenticateParent, (req, res) => {
-    console.log('Accessing parent dashboard:', {
-        username: req.session.username,
-        role: req.session.userRole
-    });
-
-    res.render('admin', {
-        username: req.session.username,
-        role: req.session.userRole,
-        error: null,
-        success: null
-    });
-});
-
-app.get('/child-dashboard', (req, res) => {
-    if (!req.session.userId || req.session.userRole !== 'child') {
-        return res.redirect('/login');
-    }
-    res.render('child', { 
-        username: req.session.username,
-        role: req.session.userRole
-    });
-});
-
-// Add a catch-all route for undefined routes
-app.use((req, res) => {
-    res.status(404).render('error', { 
-        message: 'Page not found',
-        error: { status: 404 }
-    });
-});
-
-// Temporary test route - REMOVE AFTER TESTING
-app.get('/test-db', async (req, res) => {
-    try {
-        const users = await new Promise((resolve, reject) => {
-            db.all('SELECT username, role FROM users', [], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
-        res.json({ users });
-    } catch (error) {
-        console.error('Database test error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Add a catch-all route for debugging
-app.use((req, res, next) => {
-    console.log('404 - Route not found:', req.url);
-    console.log('Session state:', req.session);
-    res.status(404).send('Route not found');
-});
-
-// Add route to get family members
-app.get('/family-members', async (req, res) => {
-    try {
-        db.all('SELECT username, role FROM users WHERE role = "child"', [], (err, rows) => {
-            if (err) {
-                console.error('Database error:', err);
-                return res.status(500).json({ error: 'Error fetching family members' });
-            }
-            res.json({ members: rows });
-        });
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Posts Routes
-app.get('/api/posts', async (req, res) => {
-    try {
-        const posts = await db.all(`
-            SELECT 
-                p.*,
-                u.username,
-                u.avatar as userAvatar,
-                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
-            FROM posts p
-            JOIN users u ON p.user_id = u.id
-            ORDER BY p.created_at DESC
-        `);
-        res.json(posts);
-    } catch (error) {
-        res.status(500).json({ error: 'Error fetching posts' });
-    }
-});
-
-app.post('/api/posts', async (req, res) => {
-    const { content, mediaUrl, mediaType } = req.body;
-    const userId = req.session.userId;
-
-    try {
-        await db.run(`
-            INSERT INTO posts (user_id, content, media_url, media_type)
-            VALUES (?, ?, ?, ?)
-        `, [userId, content, mediaUrl, mediaType]);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: 'Error creating post' });
-    }
-});
-
-// Comments Routes
-app.get('/api/posts/:postId/comments', async (req, res) => {
-    try {
-        const comments = await db.all(`
-            SELECT 
-                c.*,
-                u.username,
-                u.avatar as userAvatar
-            FROM comments c
-            JOIN users u ON c.user_id = u.id
-            WHERE c.post_id = ?
-            ORDER BY c.created_at ASC
-        `, [req.params.postId]);
-        res.json(comments);
-    } catch (error) {
-        res.status(500).json({ error: 'Error fetching comments' });
-    }
-});
-
-app.post('/api/posts/:postId/comments', async (req, res) => {
-    const { content, mediaUrl, mediaType } = req.body;
-    const userId = req.session.userId;
-    const postId = req.params.postId;
-
-    try {
-        await db.run(`
-            INSERT INTO comments (post_id, user_id, content, media_url, media_type)
-            VALUES (?, ?, ?, ?, ?)
-        `, [postId, userId, content, mediaUrl, mediaType]);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: 'Error creating comment' });
-    }
-});
-
-// Add these new routes for enhanced forum functionality
-app.delete('/api/posts/:postId', authenticateUser, async (req, res) => {
-    try {
-        const post = await db.get('SELECT user_id FROM posts WHERE id = ?', [req.params.postId]);
-        
-        // Check if user owns the post or is a parent
-        if (post.user_id !== req.session.userId && req.session.userRole !== 'parent') {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
-        
-        await db.run('DELETE FROM posts WHERE id = ?', [req.params.postId]);
-        await db.run('DELETE FROM comments WHERE post_id = ?', [req.params.postId]);
-        await db.run('DELETE FROM reactions WHERE post_id = ?', [req.params.postId]);
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error deleting post:', error);
-        res.status(500).json({ error: 'Error deleting post' });
-    }
-});
-
-app.put('/api/posts/:postId', authenticateUser, async (req, res) => {
-    try {
-        const { content } = req.body;
-        const post = await db.get('SELECT user_id FROM posts WHERE id = ?', [req.params.postId]);
-        
-        if (post.user_id !== req.session.userId) {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
-        
-        await db.run('UPDATE posts SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
-            [content, req.params.postId]);
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error updating post:', error);
-        res.status(500).json({ error: 'Error updating post' });
-    }
-});
-
-// Enhance the existing post creation route to handle Giphy
-app.post('/api/posts', authenticateUser, async (req, res) => {
-    const { content, giphyUrl } = req.body;
-    const userId = req.session.userId;
-
-    try {
-        const result = await db.run(`
-            INSERT INTO posts (user_id, content, media_url, media_type, created_at)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-        `, [userId, content, giphyUrl, giphyUrl ? 'giphy' : null]);
-        
-        // Fetch the created post with user details
-        const post = await db.get(`
-            SELECT 
-                p.*,
-                u.username,
-                u.avatar as userAvatar
-            FROM posts p
-            JOIN users u ON p.user_id = u.id
-            WHERE p.id = ?
-        `, [result.lastID]);
-        
-        res.json({ success: true, post });
-    } catch (error) {
-        console.error('Error creating post:', error);
-        res.status(500).json({ error: 'Error creating post' });
-    }
-});
-
-// Enhance the family feed route to include initial data
-app.get('/family-feed', authenticateUser, async (req, res) => {
-    try {
-        const posts = await db.all(`
-            SELECT 
-                p.*,
-                u.username,
-                u.avatar as userAvatar,
-                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
-                (SELECT COUNT(*) FROM reactions WHERE post_id = p.id) as reaction_count
-            FROM posts p
-            JOIN users u ON p.user_id = u.id
-            ORDER BY p.created_at DESC
-            LIMIT 10
-        `);
-        
-        res.render('family-feed', {
-            username: req.session.username,
-            userRole: req.session.userRole,
-            userId: req.session.userId,
-            initialPosts: posts,
-            giphyKey: process.env.GIPHY_API_KEY
-        });
-    } catch (error) {
-        console.error('Error loading family feed:', error);
-        res.status(500).render('error', { 
-            message: 'Error loading family feed'
-        });
-    }
-});
-
-app.get('/giphy-key', (req, res) => {
-    res.json({ key: process.env.GIPHY_API_KEY });
-});
-
-// Add this to debug CSS serving
-app.get('/css/*', (req, res, next) => {
-    console.log('CSS request:', req.path);
-    next();
-});
-
-// Add security headers middleware
-app.use((req, res, next) => {
-    // Cache control
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
-    
-    // Security headers
-    res.set('X-Content-Type-Options', 'nosniff');
-    res.set('Content-Security-Policy', `
-        default-src 'self';
-        img-src 'self' data: https: *.giphy.com;
-        style-src 'self' 'unsafe-inline';
-        script-src 'self' 'unsafe-inline' https://js.giphy.com;
-        connect-src 'self' https://api.giphy.com;
-        media-src 'self' *.giphy.com;
-        frame-src 'self' *.giphy.com;
-    `.replace(/\s+/g, ' ').trim());
-    res.set('Content-Type', 'text/html; charset=utf-8');
-    
-    // Remove unnecessary headers
-    res.removeHeader('X-Powered-By');
-    
-    next();
-});
-
-// Serve static files from the public directory
-app.use('/css', express.static(path.join(__dirname, 'public/css'), {
-    setHeaders: (res, path) => {
-        res.setHeader('Content-Type', 'text/css');
-        // Add cache control for better performance
-        res.setHeader('Cache-Control', 'public, max-age=31557600');
-    }
-}));
-
-// Add error handling for static files
-app.use((err, req, res, next) => {
-    if (err.code === 'ENOENT') {
-        console.error('Static file not found:', req.url);
-        return res.status(404).send('File not found');
-    }
-    next(err);
-});
-
-// Add logging for static file requests
-app.use((req, res, next) => {
-    if (req.url.startsWith('/css/')) {
-        console.log('Static file request:', {
-            url: req.url,
-            type: req.headers['content-type']
-        });
-    }
-    next();
-});
-
-// Add error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Global error:', err);
-    res.status(500).render('error', { 
-        error: 'Something went wrong! Please try again.' 
-    });
-});
-
-// Add a test route to verify session
-app.get('/test-session', (req, res) => {
-    console.log('Current session:', req.session);
-    res.json({ 
-        session: req.session,
-        sessionID: req.sessionID
-    });
-});
-
-// Add this cleanup route temporarily
-app.get('/cleanup-users', async (req, res) => {
-    try {
-        // Delete all existing users
-        await new Promise((resolve, reject) => {
-            db.run('DELETE FROM users', [], (err) => {
-                if (err) reject(err);
-                resolve();
-            });
-        });
-
-        // Create a fresh parent user
-        const password = '123123'; // Simple password for testing
-        const hashedPassword = await bcrypt.hash(password, 10);
-        
-        await new Promise((resolve, reject) => {
-            db.run(
-                'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-                ['parent', hashedPassword, 'parent'],
-                (err) => {
-                    if (err) reject(err);
-                    resolve();
+        const password = await bcrypt.hash('123123', 10);
+        db.run('INSERT OR REPLACE INTO users (username, password, role) VALUES (?, ?, ?)',
+            ['parent', password, 'parent'],
+            (err) => {
+                if (err) {
+                    console.error('Setup error:', err);
+                    return res.status(500).send('Error creating test user');
                 }
-            );
-        });
-
-        res.send('Database cleaned and fresh parent user created');
+                res.send('Test user created: parent/123123');
+            });
     } catch (error) {
-        console.error('Cleanup error:', error);
-        res.status(500).send('Error during cleanup');
+        console.error('Setup error:', error);
+        res.status(500).send('Error creating test user');
     }
+});
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });
