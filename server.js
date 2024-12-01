@@ -91,6 +91,38 @@ async function initializeDatabase() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+
+        CREATE TABLE IF NOT EXISTS chores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            assigned_to INTEGER,
+            created_by INTEGER,
+            due_date DATETIME,
+            completed BOOLEAN DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (assigned_to) REFERENCES users(id),
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS activity (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            type TEXT NOT NULL,
+            description TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            read BOOLEAN DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
     `;
 
     return new Promise((resolve, reject) => {
@@ -333,6 +365,92 @@ app.use((req, res, next) => {
         });
     }
     next();
+});
+
+// API Routes
+
+// Get Chores
+app.get('/api/chores', async (req, res) => {
+    try {
+        const chores = await new Promise((resolve, reject) => {
+            db.all('SELECT * FROM chores ORDER BY created_at DESC', [], (err, rows) => {
+                if (err) reject(err);
+                resolve(rows || []);
+            });
+        });
+        res.json(chores);
+    } catch (error) {
+        console.error('Error fetching chores:', error);
+        res.status(500).json({ error: 'Failed to fetch chores' });
+    }
+});
+
+// Get Family Members
+app.get('/api/family-members', async (req, res) => {
+    try {
+        const members = await new Promise((resolve, reject) => {
+            db.all('SELECT id, username, role FROM users ORDER BY username', [], (err, rows) => {
+                if (err) reject(err);
+                resolve(rows || []);
+            });
+        });
+        res.json(members);
+    } catch (error) {
+        console.error('Error fetching family members:', error);
+        res.status(500).json({ error: 'Failed to fetch family members' });
+    }
+});
+
+// Get Activity
+app.get('/api/activity', async (req, res) => {
+    try {
+        const activity = await new Promise((resolve, reject) => {
+            db.all(`
+                SELECT 
+                    a.id,
+                    a.type,
+                    a.description,
+                    a.created_at,
+                    u.username
+                FROM activity a
+                LEFT JOIN users u ON a.user_id = u.id
+                ORDER BY a.created_at DESC
+                LIMIT 10
+            `, [], (err, rows) => {
+                if (err) reject(err);
+                resolve(rows || []);
+            });
+        });
+        res.json(activity);
+    } catch (error) {
+        console.error('Error fetching activity:', error);
+        res.status(500).json({ error: 'Failed to fetch activity' });
+    }
+});
+
+// Get Notifications
+app.get('/api/notifications', async (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+        const notifications = await new Promise((resolve, reject) => {
+            db.all(`
+                SELECT * FROM notifications 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC 
+                LIMIT 10
+            `, [req.session.userId], (err, rows) => {
+                if (err) reject(err);
+                resolve(rows || []);
+            });
+        });
+        res.json(notifications);
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ error: 'Failed to fetch notifications' });
+    }
 });
 
 // Export for testing
