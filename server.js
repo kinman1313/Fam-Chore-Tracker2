@@ -1,4 +1,8 @@
-// 1. Required modules
+// Environment and configuration constants - MUST BE AT TOP
+const PORT = process.env.PORT || 3000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Required modules
 const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
@@ -8,48 +12,47 @@ const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
-// 2. Initialize express app
+// Database configuration
+const dbPath = NODE_ENV === 'production' 
+    ? '/var/data/familychores.db'
+    : path.join(__dirname, 'familychores.db');
+
+// Initialize express app
 const app = express();
 
-// 3. Middleware setup
+// Middleware setup
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
-
-// 4. View engine setup
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// 5. Session configuration
+// Session configuration
 app.use(session({
     store: new SQLiteStore({
         db: 'sessions.db',
-        dir: process.env.NODE_ENV === 'production' ? '/var/data' : '.'
+        dir: NODE_ENV === 'production' ? '/var/data' : '.'
     }),
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 1000 * 60 * 60 * 24 // 24 hours
+        secure: NODE_ENV === 'production',
+        maxAge: 1000 * 60 * 60 * 24
     }
 }));
 
-// 6. Database setup
-const dbPath = process.env.NODE_ENV === 'production' 
-    ? '/var/data/familychores.db'
-    : path.join(__dirname, 'familychores.db');
-
+// Database connection
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
-        console.error('Error connecting to database:', err);
+        console.error('Database connection error:', err);
         process.exit(1);
     }
     console.log('Connected to database at:', dbPath);
 });
 
-// 7. Email configuration
-const transporter = process.env.NODE_ENV === 'production' ? nodemailer.createTransport({
+// Email configuration
+const transporter = NODE_ENV === 'production' ? nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER || '',
@@ -103,7 +106,7 @@ async function initializeDatabase() {
     });
 }
 
-// Update server startup
+// Server startup function
 async function startServer() {
     try {
         await initializeDatabase();
@@ -131,11 +134,13 @@ async function startServer() {
             console.log('Default admin user created');
         }
 
-        // Start the server
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-            console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-            console.log(`Database path: ${dbPath}`);
+        return new Promise((resolve, reject) => {
+            const server = app.listen(PORT, () => {
+                console.log(`Server running on port ${PORT}`);
+                console.log(`Environment: ${NODE_ENV}`);
+                console.log(`Database path: ${dbPath}`);
+                resolve(server);
+            }).on('error', reject);
         });
     } catch (error) {
         console.error('Server startup error:', error);
@@ -143,7 +148,7 @@ async function startServer() {
     }
 }
 
-// Start the server
+// Start the server with proper error handling
 startServer().catch(error => {
     console.error('Fatal error during startup:', error);
     process.exit(1);
@@ -249,4 +254,4 @@ app.use((req, res) => {
 });
 
 // Export for testing
-module.exports = app;
+module.exports = { app, db };
