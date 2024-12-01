@@ -1,11 +1,8 @@
 const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
+const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
-const path = require('path');
-const app = express();
-const nodemailer = require('nodemailer');
-const schedule = require('node-schedule');
 
 // Basic middleware
 app.use(express.urlencoded({ extended: true }));
@@ -836,6 +833,118 @@ app.get('/register', (req, res) => {
         </body>
         </html>
     `);
+});
+
+// Add this to your database initialization
+db.run(`CREATE TABLE IF NOT EXISTS password_resets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+)`);
+
+// Email configuration (add these to your environment variables)
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD // Use app-specific password
+    }
+});
+
+// Password reset request route
+app.post('/api/password-reset/request', async (req, res) => {
+    const { username } = req.body;
+
+    try {
+        // Find user
+        const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Generate reset token
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 3600000); // 1 hour from now
+
+        // Save reset token
+        await db.run(
+            'INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)',
+            [user.id, token, expiresAt]
+        );
+
+        // Send reset email
+        const resetLink = `${process.env.APP_URL}/reset-password/${token}`;
+        await transporter.sendMail({
+            to: user.email,
+            subject: 'Password Reset Request',
+            html: `
+                <h1>Password Reset Request</h1>
+                <p>Click the link below to reset your password. This link will expire in 1 hour.</p>
+                <a href="${resetLink}">Reset Password</a>
+                <p>If you didn't request this, please ignore this email.</p>
+            `
+        });
+
+        res.json({ success: true, message: 'Password reset instructions sent' });
+    } catch (error) {
+        console.error('Password reset request error:', error);
+        res.status(500).json({ error: 'Failed to process reset request' });
+    }
+});
+
+// Reset password route
+app.post('/api/password-reset/reset', async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    try {
+        // Find valid reset token
+        const reset = await db.get(`
+            SELECT * FROM password_resets 
+            WHERE token = ? 
+            AND used = 0 
+            AND expires_at > datetime('now')
+            ORDER BY created_at DESC 
+            LIMIT 1
+        `, [token]);
+
+        if (!reset) {
+            return res.status(400).json({ error: 'Invalid or expired reset token' });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password and mark token as used
+        await db.run('BEGIN TRANSACTION');
+        await db.run(
+            'UPDATE users SET password = ? WHERE id = ?',
+            [hashedPassword, reset.user_id]
+        );
+        await db.run(
+            'UPDATE password_resets SET used = 1 WHERE id = ?',
+            [reset.id]
+        );
+        await db.run('COMMIT');
+
+        res.json({ success: true, message: 'Password reset successful' });
+    } catch (error) {
+        await db.run('ROLLBACK');
+        console.error('Password reset error:', error);
+        res.status(500).json({ error: 'Failed to reset password' });
+    }
+});
+
+// Add these routes
+app.get('/forgot-password', (req, res) => {
+    res.render('forgot-password');
+});
+
+app.get('/reset-password/:token', (req, res) => {
+    res.render('reset-password', { token: req.params.token });
 });
 
 const port = process.env.PORT || 3000;
