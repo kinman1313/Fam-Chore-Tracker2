@@ -195,11 +195,23 @@
             }
         }
     </style>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script>
-        // Add user role from session
-        const userRole = '<%= userRole %>';
+        // Safely handle session data with defaults
+        const userRole = '<%= locals.userRole || "user" %>';
+        const username = '<%= locals.username || "User" %>';
+        const isParent = userRole === 'parent';
+        
+        // Debug info
+        console.log('Session data:', {
+            role: userRole,
+            username: username,
+            isParent: isParent
+        });
     </script>
+
+    <!-- External Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 </head>
 <body>
 
@@ -234,7 +246,7 @@
         <div class="col-md-10 content-wrapper p-4">
             <!-- Header -->
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3">Welcome, <%= username %></h1>
+                <h1 class="h3">Welcome, <%= locals.username || 'User' %></h1>
                 <div class="d-flex align-items-center">
                     <div class="dropdown me-3">
                         <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -243,13 +255,12 @@
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
                             <!-- Notifications will go here -->
+                            <div class="dropdown-item text-center text-muted">No new notifications</div>
                         </div>
                     </div>
-                    <form action="/logout" method="POST">
-                        <button class="btn btn-outline-primary" type="submit">
-                            <i class="fas fa-sign-out-alt me-2"></i>Logout
-                        </button>
-                    </form>
+                    <a href="/logout" class="btn btn-outline-primary">
+                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                    </a>
                 </div>
             </div>
 
@@ -750,656 +761,59 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Global variables
-let familyMembers = [];
-let chores = [];
-let activities = [];
-let notifications = [];
-
-// Initialize Bootstrap components
-document.addEventListener('DOMContentLoaded', function() {
-    loadDashboardData();
-    loadNotifications();
-    startPolling();
-});
-
-// Modal handlers
-const memberModal = new bootstrap.Modal(document.getElementById('addMemberModal'));
-const choreModal = new bootstrap.Modal(document.getElementById('addChoreModal'));
-const toast = new bootstrap.Toast(document.getElementById('notificationToast'));
-
-// Data loading functions
-async function loadDashboardData() {
-    await Promise.all([
-        loadFamilyMembers(),
-        loadChores(),
-        loadActivity()
-    ]);
-    updateDashboardStats();
-}
-
-async function loadFamilyMembers() {
-    try {
-        const response = await fetch('/api/family-members');
-        familyMembers = await response.json();
-        renderFamilyMembers();
-    } catch (error) {
-        showNotification('Error loading family members', 'error');
-    }
-}
-
-async function loadChores() {
-    try {
-        const response = await fetch('/api/chores');
-        chores = await response.json();
-        renderChores();
-    } catch (error) {
-        showNotification('Error loading chores', 'error');
-    }
-}
-
-async function loadActivity() {
-    try {
-        const response = await fetch('/api/activity');
-        activities = await response.json();
-        renderActivity();
-    } catch (error) {
-        showNotification('Error loading activity', 'error');
-    }
-}
-
-async function loadNotifications() {
-    try {
-        const response = await fetch('/api/notifications');
-        notifications = await response.json();
-        renderNotifications();
-        updateNotificationBadge();
-    } catch (error) {
-        console.error('Error loading notifications:', error);
-    }
-}
-
-// Render functions
-function renderFamilyMembers() {
-    const container = document.getElementById('familyMembersList');
-    container.innerHTML = familyMembers.map(member => `
-        <div class="d-flex align-items-center mb-3 p-3 border rounded">
-            <div class="avatar me-3" style="background-color: ${member.avatarColor || '#4e73df'}">
-                ${member.username[0].toUpperCase()}
-            </div>
-            <div class="flex-grow-1">
-                <h6 class="mb-0">${member.username}</h6>
-                <small class="text-muted">${member.points} points</small>
-            </div>
-            <div class="ms-auto">
-                <button class="btn btn-sm btn-outline-primary me-2" onclick="viewMemberDetails(${member.id})">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="removeMember(${member.id})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderChores() {
-    const container = document.getElementById('choresList');
-    container.innerHTML = chores.map(chore => `
-        <div class="d-flex align-items-center mb-3 p-3 border rounded">
-            <div class="flex-grow-1">
-                <h6 class="mb-0">${chore.description}</h6>
-                <small class="text-muted">${chore.points} points</small>
-            </div>
-            <div class="ms-auto">
-                <button class="btn btn-sm btn-success me-2" onclick="assignChore(${chore.id})">
-                    <i class="fas fa-user-plus"></i>
-                </button>
-                <button class="btn btn-sm btn-danger" onclick="deleteChore(${chore.id})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderActivity() {
-    const container = document.getElementById('activityFeed');
-    if (!container) return;
-    
-    container.innerHTML = activities.map(activity => `
-        <div class="d-flex align-items-center mb-3">
-            <div class="avatar me-3" style="background-color: ${activity.avatarColor || '#4e73df'}">
-                ${activity.username[0].toUpperCase()}
-            </div>
-            <div>
-                <p class="mb-0"><strong>${activity.username}</strong> ${activity.description}</p>
-                <small class="text-muted">${formatDate(activity.created_at)}</small>
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderNotifications() {
-    const container = document.querySelector('.dropdown-menu');
-    if (notifications.length === 0) {
-        container.innerHTML = '<li><span class="dropdown-item text-muted">No new notifications</span></li>';
-        return;
-    }
-
-    container.innerHTML = notifications.map(notification => `
-        <li>
-            <a class="dropdown-item ${notification.read ? 'text-muted' : ''}" href="#" 
-               onclick="handleNotification(${notification.id})">
-                <i class="fas ${getNotificationIcon(notification.type)} me-2"></i>
-                ${notification.message}
-                <br>
-                <small class="text-muted">${formatDate(notification.created_at)}</small>
-            </a>
-        </li>
-    `).join('');
-}
-
-// Action handlers
-async function addFamilyMember() {
-    const form = document.getElementById('addMemberForm');
-    const formData = new FormData(form);
-    
-    try {
-        const response = await fetch('/api/family-members', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Object.fromEntries(formData))
+    // Role-based feature visibility
+    document.addEventListener('DOMContentLoaded', function() {
+        const parentOnlyElements = document.querySelectorAll('.parent-only');
+        const childOnlyElements = document.querySelectorAll('.child-only');
+        
+        parentOnlyElements.forEach(element => {
+            element.style.display = isParent ? '' : 'none';
         });
         
-        if (response.ok) {
-            const newMember = await response.json();
-            familyMembers.push(newMember);
-            renderFamilyMembers();
-            memberModal.hide();
-            form.reset();
-            showNotification('Family member added successfully');
-        } else {
-            throw new Error('Failed to add family member');
-        }
-    } catch (error) {
-        showNotification('Error adding family member', 'error');
-    }
-}
-
-async function addChore() {
-    const form = document.getElementById('addChoreForm');
-    const formData = new FormData(form);
-    
-    try {
-        const response = await fetch('/api/chores', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Object.fromEntries(formData))
+        childOnlyElements.forEach(element => {
+            element.style.display = !isParent ? '' : 'none';
         });
-        
-        if (response.ok) {
-            const newChore = await response.json();
-            chores.push(newChore);
-            renderChores();
-            choreModal.hide();
-            form.reset();
-            showNotification('Chore added successfully');
-        } else {
-            throw new Error('Failed to add chore');
-        }
-    } catch (error) {
-        showNotification('Error adding chore', 'error');
-    }
-}
 
-async function handleNotification(notificationId) {
-    try {
-        await fetch('/api/notifications/mark-read', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notificationId })
+        // Initialize tooltips and popovers
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
-        
-        const notification = notifications.find(n => n.id === notificationId);
-        if (notification) {
-            notification.read = true;
-            renderNotifications();
-            updateNotificationBadge();
-        }
-    } catch (error) {
-        console.error('Error handling notification:', error);
-    }
-}
 
-// Utility functions
-function showNotification(message, type = 'success') {
-    const toastEl = document.getElementById('notificationToast');
-    toastEl.querySelector('.toast-body').textContent = message;
-    toastEl.classList.toggle('bg-danger', type === 'error');
-    toast.show();
-}
-
-function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
-function getNotificationIcon(type) {
-    const icons = {
-        'chore': 'fa-tasks',
-        'points': 'fa-star',
-        'approval': 'fa-check-circle',
-        'system': 'fa-info-circle'
-    };
-    return icons[type] || 'fa-bell';
-}
-
-function updateNotificationBadge() {
-    const unreadCount = notifications.filter(n => !n.read).length;
-    const badge = document.querySelector('.notification-badge');
-    if (badge) {
-        badge.textContent = unreadCount;
-        badge.style.display = unreadCount > 0 ? 'block' : 'none';
-    }
-}
-
-// Stats update
-function updateDashboardStats() {
-    const totalPoints = familyMembers.reduce((sum, member) => sum + member.points, 0);
-    const pendingApprovals = chores.filter(chore => chore.status === 'pending').length;
-    
-    document.getElementById('totalMembers').textContent = familyMembers.length;
-    document.getElementById('totalPoints').textContent = totalPoints;
-    document.getElementById('activeChores').textContent = chores.length;
-    document.getElementById('pendingApprovals').textContent = pendingApprovals;
-}
-
-// Start polling for updates
-function startPolling() {
-    setInterval(() => {
+        // Load initial data
         loadDashboardData();
-        loadNotifications();
-    }, 30000); // Poll every 30 seconds
-}
-
-// Rewards handling
-async function addReward() {
-    const form = document.getElementById('addRewardForm');
-    const formData = new FormData(form);
-    
-    try {
-        const response = await fetch('/api/rewards', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Object.fromEntries(formData))
-        });
-        
-        if (response.ok) {
-            const reward = await response.json();
-            showNotification('Reward added successfully');
-            loadRewards();
-            $('#addRewardModal').modal('hide');
-            form.reset();
-        } else {
-            throw new Error('Failed to add reward');
-        }
-    } catch (error) {
-        showNotification('Error adding reward', 'error');
-    }
-}
-
-// Scheduling handling
-function showScheduleModal(choreId) {
-    const form = document.getElementById('scheduleChoreForm');
-    form.elements.chore_id.value = choreId;
-    
-    // Populate family members dropdown
-    const userSelect = form.elements.user_id;
-    userSelect.innerHTML = '<option value="">Select Family Member</option>' +
-        familyMembers.map(member => 
-            `<option value="${member.id}">${member.username}</option>`
-        ).join('');
-    
-    new bootstrap.Modal(document.getElementById('scheduleChoreModal')).show();
-}
-
-function updateScheduleFields() {
-    const frequency = document.querySelector('[name="frequency"]').value;
-    const daySelection = document.getElementById('daySelection');
-    daySelection.style.display = frequency !== 'daily' ? 'block' : 'none';
-}
-
-async function scheduleChore() {
-    const form = document.getElementById('scheduleChoreForm');
-    const formData = new FormData(form);
-    
-    try {
-        const response = await fetch('/api/chores/schedule', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Object.fromEntries(formData))
-        });
-        
-        if (response.ok) {
-            showNotification('Chore scheduled successfully');
-            loadChores();
-            $('#scheduleChoreModal').modal('hide');
-            form.reset();
-        } else {
-            throw new Error('Failed to schedule chore');
-        }
-    } catch (error) {
-        showNotification('Error scheduling chore', 'error');
-    }
-}
-
-// Add FullCalendar initialization
-document.addEventListener('DOMContentLoaded', function() {
-    const calendarEl = document.getElementById('choreCalendar');
-    const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        },
-        events: function(info, successCallback, failureCallback) {
-            fetch(`/api/calendar/chores?start=${info.startStr}&end=${info.endStr}`)
-                .then(response => response.json())
-                .then(events => successCallback(events))
-                .catch(error => failureCallback(error));
-        },
-        eventClick: function(info) {
-            showChoreDetails(info.event);
-        }
     });
-    calendar.render();
-});
 
-// Rewards handling
-let currentRewards = [];
-
-async function loadRewards() {
-    try {
-        const response = await fetch('/api/rewards');
-        currentRewards = await response.json();
-        renderRewards();
-    } catch (error) {
-        showNotification('Error loading rewards', 'error');
+    // Add error handling for fetch calls
+    function handleFetchError(error) {
+        console.error('Fetch error:', error);
+        showNotification(error.message || 'An error occurred', 'error');
     }
-}
 
-function renderRewards() {
-    const container = document.getElementById('rewardsGrid');
-    container.innerHTML = currentRewards.map(reward => `
-        <div class="col-md-4 col-lg-3 mb-4">
-            <div class="card h-100">
-                <img src="${reward.image_url || 'default-reward.png'}" 
-                     class="card-img-top" alt="${reward.title}"
-                     style="height: 200px; object-fit: cover;">
-                <div class="card-body">
-                    <h5 class="card-title">${reward.title}</h5>
-                    <p class="card-text">${reward.description}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-warning">
-                            <i class="fas fa-star"></i> ${reward.points_required}
-                        </span>
-                        <button class="btn btn-primary btn-sm" 
-                                onclick="showRedeemModal(${reward.id})">
-                            Redeem
-                        </button>
-                    </div>
-                </div>
+    // Improved notification system
+    function showNotification(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
-        </div>
-    `).join('');
-}
-
-function showRedeemModal(rewardId) {
-    const reward = currentRewards.find(r => r.id === rewardId);
-    if (!reward) return;
-
-    document.getElementById('rewardImage').src = reward.image_url || 'default-reward.png';
-    document.getElementById('rewardTitle').textContent = reward.title;
-    document.getElementById('rewardDescription').textContent = reward.description;
-    document.getElementById('pointsRequired').textContent = reward.points_required;
-    document.getElementById('currentPoints').textContent = currentUserPoints;
-
-    const modal = new bootstrap.Modal(document.getElementById('redeemRewardModal'));
-    modal.show();
-}
-
-async function redeemReward(rewardId) {
-    try {
-        const response = await fetch('/api/rewards/redeem', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rewardId })
+        `;
+        
+        document.body.appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+        
+        toast.addEventListener('hidden.bs.toast', () => {
+            toast.remove();
         });
-
-        if (response.ok) {
-            showNotification('Reward redeemed successfully!');
-            loadRewards();
-            bootstrap.Modal.getInstance(document.getElementById('redeemRewardModal')).hide();
-        } else {
-            const data = await response.json();
-            throw new Error(data.error);
-        }
-    } catch (error) {
-        showNotification(error.message, 'error');
     }
-}
-
-// Push notification registration
-async function registerPushNotifications() {
-    try {
-        const registration = await navigator.serviceWorker.register('/service-worker.js');
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: 'YOUR_VAPID_PUBLIC_KEY'
-        });
-
-        await fetch('/api/notifications/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(subscription)
-        });
-
-        showNotification('Notifications enabled successfully');
-    } catch (error) {
-        showNotification('Failed to enable notifications', 'error');
-    }
-}
-
-// Chore completion handling
-async function markChoreComplete(choreId, scheduledChoreId = null) {
-    try {
-        const response = await fetch('/api/chores/complete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ choreId, scheduledChoreId })
-        });
-
-        if (response.ok) {
-            showNotification('Chore marked as complete!');
-            loadChores();
-            updateDashboardStats();
-        } else {
-            throw new Error('Failed to complete chore');
-        }
-    } catch (error) {
-        showNotification(error.message, 'error');
-    }
-}
-
-// Add completion tracking to calendar events
-function renderChoreEvent(chore) {
-    return {
-        id: chore.id,
-        title: chore.description,
-        start: chore.due_date,
-        className: getChoreStatusClass(chore),
-        extendedProps: {
-            points: chore.points,
-            completed: chore.completed,
-            verified: chore.verified
-        }
-    };
-}
-
-function getChoreStatusClass(chore) {
-    if (chore.verified) return 'bg-success';
-    if (chore.completed) return 'bg-warning';
-    return 'bg-primary';
-}
-
-// Parent Settings Management
-let parentSettings = {};
-
-async function loadParentSettings() {
-    try {
-        const response = await fetch('/api/parent/settings');
-        parentSettings = await response.json();
-        populateSettingsForm();
-    } catch (error) {
-        showNotification('Error loading settings', 'error');
-    }
-}
-
-function populateSettingsForm() {
-    const forms = {
-        verificationSettingsForm: ['auto_verify_below_points', 'require_photo_proof'],
-        pointSettingsForm: ['point_multiplier'],
-        permissionSettingsForm: ['allow_child_scheduling']
-    };
-
-    Object.entries(forms).forEach(([formId, fields]) => {
-        const form = document.getElementById(formId);
-        fields.forEach(field => {
-            const input = form.elements[field];
-            if (input.type === 'checkbox') {
-                input.checked = parentSettings[field];
-            } else {
-                input.value = parentSettings[field];
-            }
-        });
-    });
-}
-
-async function saveParentSettings() {
-    const settings = {
-        auto_verify_below_points: parseInt(document.querySelector('[name="auto_verify_below_points"]').value),
-        require_photo_proof: document.querySelector('[name="require_photo_proof"]').checked,
-        allow_child_scheduling: document.querySelector('[name="allow_child_scheduling"]').checked,
-        point_multiplier: parseFloat(document.querySelector('[name="point_multiplier"]').value)
-    };
-
-    try {
-        const response = await fetch('/api/parent/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(settings)
-        });
-
-        if (response.ok) {
-            showNotification('Settings saved successfully');
-            parentSettings = settings;
-            bootstrap.Modal.getInstance(document.getElementById('parentSettingsModal')).hide();
-        } else {
-            throw new Error('Failed to save settings');
-        }
-    } catch (error) {
-        showNotification('Error saving settings', 'error');
-    }
-}
-
-// Verification Queue Management
-async function loadVerificationQueue() {
-    try {
-        const response = await fetch('/api/chores/pending-verification');
-        const queue = await response.json();
-        renderVerificationQueue(queue);
-    } catch (error) {
-        showNotification('Error loading verification queue', 'error');
-    }
-}
-
-function renderVerificationQueue(queue) {
-    const container = document.getElementById('verificationQueue');
-    if (queue.length === 0) {
-        container.innerHTML = '<p class="text-center text-muted">No items waiting for verification</p>';
-        return;
-    }
-
-    container.innerHTML = queue.map(item => `
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="avatar me-3" style="background-color: ${item.avatarColor || '#4e73df'}">
-                        ${item.username[0].toUpperCase()}
-                    </div>
-                    <div>
-                        <h6 class="mb-0">${item.username}</h6>
-                        <small class="text-muted">${formatDate(item.completed_at)}</small>
-                    </div>
-                </div>
-                
-                <h5 class="card-title">${item.description}</h5>
-                ${item.photo_proof ? `
-                    <img src="${item.photo_proof}" class="img-fluid rounded mb-3" alt="Proof">
-                ` : ''}
-                
-                <div class="mb-3">
-                    <label class="form-label">Feedback (optional):</label>
-                    <textarea class="form-control" id="feedback-${item.id}"></textarea>
-                </div>
-                
-                <div class="d-flex justify-content-end">
-                    <button class="btn btn-danger me-2" onclick="verifyChore(${item.id}, false)">
-                        <i class="fas fa-times me-1"></i>Reject
-                    </button>
-                    <button class="btn btn-success" onclick="verifyChore(${item.id}, true)">
-                        <i class="fas fa-check me-1"></i>Approve
-                    </button>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-async function verifyChore(completionId, approved) {
-    const feedback = document.getElementById(`feedback-${completionId}`).value;
-    
-    try {
-        const response = await fetch('/api/chores/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ completionId, approved, feedback })
-        });
-
-        if (response.ok) {
-            showNotification(`Chore ${approved ? 'approved' : 'rejected'} successfully`);
-            loadVerificationQueue();
-        } else {
-            throw new Error('Verification failed');
-        }
-    } catch (error) {
-        showNotification('Error processing verification', 'error');
-    }
-}
-
-// Initialize parent controls
-if (userRole === 'parent') {
-    loadParentSettings();
-    loadVerificationQueue();
-}
 </script>
 
 </body>

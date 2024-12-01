@@ -42,6 +42,17 @@ app.use(session({
     }
 }));
 
+// Add this middleware after session configuration
+app.use((req, res, next) => {
+    console.log('Session data:', {
+        userId: req.session.userId,
+        username: req.session.username,
+        userRole: req.session.userRole,
+        isAuthenticated: req.session.isAuthenticated
+    });
+    next();
+});
+
 // Database connection
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
@@ -205,14 +216,19 @@ app.get('/login', (req, res) => {
 });
 
 // Admin/Dashboard route
-app.get('/admin', (req, res) => {
-    if (!req.session.userId) {
-        res.redirect('/login');
-        return;
+app.get('/admin', authenticateUser, (req, res) => {
+    // Ensure we have all required session data
+    if (!req.session.userRole) {
+        console.error('User role not found in session');
+        return res.redirect('/logout');
     }
+
     res.render('admin', {
-        username: req.session.username,
-        role: req.session.userRole
+        username: req.session.username || 'User',
+        userRole: req.session.userRole || 'user',
+        // Add more default values
+        pageTitle: 'Admin Dashboard',
+        isAuthenticated: true
     });
 });
 
