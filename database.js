@@ -398,9 +398,28 @@ if (process.argv.includes('--seed')) {
         });
 }
 
+// Add this function to check user roles
+const verifyUserRole = async (username) => {
+    return new Promise((resolve, reject) => {
+        db.get(
+            'SELECT role FROM users WHERE username = ?',
+            [username],
+            (err, row) => {
+                if (err) {
+                    console.error('Error verifying user role:', err);
+                    reject(err);
+                }
+                console.log('User role verification:', { username, role: row?.role });
+                resolve(row?.role);
+            }
+        );
+    });
+};
+
 module.exports = {
     db,
     initializeDatabase,
     userOperations,
-    choreOperations
+    choreOperations,
+    verifyUserRole
 };
