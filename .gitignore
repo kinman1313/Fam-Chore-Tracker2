@@ -1,11 +1,5 @@
+*.db
+public/*.css.backup
 node_modules/
 .env
-.DS_Store
 *.log
-public/css/*.css.map
-
-# Add these to .gitignore
-node_modules/
-*.db
-public/styles.css.backup
-.envnode_modules/
