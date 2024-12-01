@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "npm install && npm run init-db && npm run sass:build",
+    "build": "npm install && npm run init-db",
     "dev": "concurrently \"nodemon server.js\" \"npm run sass\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint .",
