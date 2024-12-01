@@ -5,9 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build": "npm install && npm run init-db && npm run sass:build",
     "dev": "concurrently \"nodemon server.js\" \"npm run sass\"",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "echo 'Build completed'",
     "lint": "eslint .",
     "migrate": "node database.js --migrate",
     "seed": "node database.js --seed",
@@ -26,9 +26,11 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "connect-sqlite3": "^0.9.15",
+    "crypto": "^1.0.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
     "express-session": "^1.18.1",
+    "nodemailer": "^6.9.16",
     "sqlite3": "^5.1.6"
   },
   "devDependencies": {
