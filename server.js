@@ -5,7 +5,6 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const app = express();
 const nodemailer = require('nodemailer');
-const webpush = require('web-push');
 const schedule = require('node-schedule');
 
 // Basic middleware
@@ -447,13 +446,6 @@ app.get('/api/calendar/chores', async (req, res) => {
     }
 });
 
-// Configure web push
-webpush.setVapidDetails(
-    'mailto:your@email.com',
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-);
-
 // Add subscription table
 db.run(`CREATE TABLE IF NOT EXISTS push_subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -732,6 +724,111 @@ app.post('/api/parent/settings', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: 'Failed to update settings' });
     }
+});
+
+// Add this route for user creation
+app.post('/api/register', async (req, res) => {
+    const { username, password, role } = req.body;
+    
+    try {
+        // Check if username already exists
+        const existingUser = await db.get('SELECT id FROM users WHERE username = ?', [username]);
+        if (existingUser) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
+
+        // Insert new user
+        const result = await db.run(
+            'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+            [username, password, role || 'child']
+        );
+
+        res.json({ 
+            success: true, 
+            userId: result.lastID,
+            message: 'User created successfully'
+        });
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ error: 'Failed to create user' });
+    }
+});
+
+// Add a simple registration form route
+app.get('/register', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Register</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body>
+            <div class="container mt-5">
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="text-center">Register New User</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="registerForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Username</label>
+                                        <input type="text" class="form-control" name="username" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Password</label>
+                                        <input type="password" class="form-control" name="password" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Role</label>
+                                        <select class="form-control" name="role">
+                                            <option value="parent">Parent</option>
+                                            <option value="child">Child</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">Register</button>
+                                </form>
+                                <div class="mt-3 text-center">
+                                    <a href="/login">Already have an account? Login</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                document.getElementById('registerForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.target);
+                    const data = Object.fromEntries(formData);
+
+                    try {
+                        const response = await fetch('/api/register', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(data)
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            alert('Registration successful! Please login.');
+                            window.location.href = '/login';
+                        } else {
+                            alert(result.error || 'Registration failed');
+                        }
+                    } catch (error) {
+                        alert('Registration failed');
+                    }
+                });
+            </script>
+        </body>
+        </html>
+    `);
 });
 
 const port = process.env.PORT || 3000;
