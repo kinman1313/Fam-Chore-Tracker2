@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Dashboard home - simplified version for testing
+// Dashboard home
 router.get('/', async (req, res) => {
     try {
         const stats = {
@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
         };
 
         res.render('dashboard/index', {
-            user: { name: 'Test User' }, // Temporary user object
+            user: { name: 'Test User' },
             stats: stats,
             weeklyProgress: [],
             leaderboard: [],
@@ -22,6 +22,48 @@ router.get('/', async (req, res) => {
         console.error('Dashboard error:', error);
         res.status(500).render('error', { 
             message: 'Failed to load dashboard' 
+        });
+    }
+});
+
+// Chores management
+router.get('/chores', async (req, res) => {
+    try {
+        res.render('dashboard/chores', {
+            user: { name: 'Test User' },
+            chores: []
+        });
+    } catch (error) {
+        res.status(500).render('error', { 
+            message: 'Failed to load chores' 
+        });
+    }
+});
+
+// Rewards management
+router.get('/rewards', async (req, res) => {
+    try {
+        res.render('dashboard/rewards', {
+            user: { name: 'Test User' },
+            rewards: []
+        });
+    } catch (error) {
+        res.status(500).render('error', { 
+            message: 'Failed to load rewards' 
+        });
+    }
+});
+
+// Family management
+router.get('/family', async (req, res) => {
+    try {
+        res.render('dashboard/family', {
+            user: { name: 'Test User' },
+            family: {}
+        });
+    } catch (error) {
+        res.status(500).render('error', { 
+            message: 'Failed to load family settings' 
         });
     }
 });
