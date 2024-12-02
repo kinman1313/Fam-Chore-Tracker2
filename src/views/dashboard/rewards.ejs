@@ -1,0 +1,128 @@
+<%- include('../layouts/dashboard', { title: 'Rewards' }) %>
+
+<div class="rewards-container">
+    <!-- Rewards Header -->
+    <div class="section-header">
+        <div class="header-left">
+            <h2>Rewards</h2>
+            <div class="points-display large">
+                <i class="fas fa-star"></i>
+                <span><%= userPoints %> points available</span>
+            </div>
+        </div>
+        <% if (user.role === 'parent') { %>
+        <button class="btn btn-primary" id="addRewardBtn">
+            <i class="fas fa-plus"></i> Add Reward
+        </button>
+        <% } %>
+    </div>
+
+    <!-- Rewards Grid -->
+    <div class="rewards-grid">
+        <% rewards.forEach(reward => { %>
+        <div class="reward-card <%= reward.user_points >= reward.points_required ? 'available' : 'locked' %>">
+            <div class="reward-header">
+                <h3><%= reward.name %></h3>
+                <span class="points-required">
+                    <i class="fas fa-star"></i> <%= reward.points_required %>
+                </span>
+            </div>
+            
+            <p class="reward-description"><%= reward.description %></p>
+            
+            <div class="reward-progress">
+                <div class="progress-bar">
+                    <div class="progress" style="width: <%= Math.min(100, (reward.user_points / reward.points_required) * 100) %>%"></div>
+                </div>
+                <span class="progress-text">
+                    <%= reward.user_points %> / <%= reward.points_required %> points
+                </span>
+            </div>
+
+            <div class="reward-actions">
+                <% if (user.role === 'child') { %>
+                <button class="btn btn-primary redeem-reward" 
+                        data-reward-id="<%= reward.id %>"
+                        <%= reward.user_points < reward.points_required ? 'disabled' : '' %>>
+                    Redeem
+                </button>
+                <% } %>
+                
+                <% if (user.role === 'parent') { %>
+                <button class="btn btn-icon edit-reward" data-reward-id="<%= reward.id %>">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-icon delete-reward" data-reward-id="<%= reward.id %>">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <% } %>
+            </div>
+        </div>
+        <% }) %>
+    </div>
+
+    <!-- Redemption History -->
+    <div class="section-header mt-4">
+        <h2>Redemption History</h2>
+    </div>
+    <div class="redemption-history">
+        <% redemptions.forEach(redemption => { %>
+        <div class="redemption-item">
+            <div class="redemption-info">
+                <h4><%= redemption.reward_name %></h4>
+                <span class="redemption-date">
+                    <%= new Date(redemption.created_at).toLocaleDateString() %>
+                </span>
+            </div>
+            <div class="redemption-status">
+                <span class="status-badge <%= redemption.status %>">
+                    <%= redemption.status %>
+                </span>
+                <% if (user.role === 'parent' && redemption.status === 'pending') { %>
+                <div class="status-actions">
+                    <button class="btn btn-sm btn-success approve-redemption" 
+                            data-redemption-id="<%= redemption.id %>">
+                        Approve
+                    </button>
+                    <button class="btn btn-sm btn-danger deny-redemption" 
+                            data-redemption-id="<%= redemption.id %>">
+                        Deny
+                    </button>
+                </div>
+                <% } %>
+            </div>
+        </div>
+        <% }) %>
+    </div>
+</div>
+
+<!-- Add/Edit Reward Modal -->
+<div id="rewardModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">Add New Reward</h2>
+            <button class="close-modal">&times;</button>
+        </div>
+        <form id="rewardForm">
+            <input type="hidden" id="rewardId">
+            <div class="form-group">
+                <label for="rewardName">Name</label>
+                <input type="text" id="rewardName" required>
+            </div>
+            <div class="form-group">
+                <label for="rewardDescription">Description</label>
+                <textarea id="rewardDescription" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="pointsRequired">Points Required</label>
+                <input type="number" id="pointsRequired" min="1" required>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary close-modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Reward</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/rewards.js"></script>
