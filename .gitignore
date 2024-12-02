@@ -1,5 +1,36 @@
-*.db
-public/*.css.backup
+# Dependencies
 node_modules/
+
+# Environment
 .env
+.env.*
+!.env.example
+
+# Database
+*.sqlite3
+*.db
+src/data/
+
+# Logs
+logs/
 *.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup
+temp_backup/
+backup_old_project/

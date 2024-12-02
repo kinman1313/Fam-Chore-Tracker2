@@ -1,49 +1,29 @@
 {
-  "name": "fam-chore-tracker2",
+  "name": "family-chores",
   "version": "1.0.0",
-  "description": "New Chore Tracker",
-  "main": "server.js",
+  "description": "Family chore management system",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node server.js",
-    "build": "npm install && npm run init-db",
-    "dev": "concurrently \"nodemon server.js\" \"npm run sass\"",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint .",
-    "migrate": "node database.js --migrate",
-    "seed": "node database.js --seed",
-    "reset-passwords": "node utils/reset-passwords.js",
-    "sass": "sass src/scss/main.scss:public/css/styles.css --watch",
-    "sass:build": "sass src/scss/main.scss:public/css/styles.css --style compressed",
-    "init-db": "node database/init.js",
-    "check-db": "node database/check.js",
-    "start:prod": "NODE_ENV=production node server.js",
-    "db:reset": "node database/init.js --reset",
-    "db:seed": "node database/seed.js"
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "migrate": "node src/database/migrations/index.js",
+    "seed": "node src/database/seeds/index.js",
+    "clean": "rm -rf node_modules package-lock.json && npm install",
+    "test": "jest",
+    "lint": "eslint src/"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "connect-sqlite3": "^0.9.15",
-    "crypto": "^1.0.1",
+    "connect-sqlite3": "^0.9.13",
+    "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
-    "express-session": "^1.18.1",
-    "nodemailer": "^6.9.16",
+    "express-session": "^1.17.3",
     "sqlite3": "^5.1.6"
   },
   "devDependencies": {
-    "@flydotio/dockerfile": "^0.5.9",
-    "concurrently": "^9.1.0",
-    "eslint": "^8.57.0",
+    "eslint": "^8.55.0",
     "jest": "^29.7.0",
-    "nodemon": "^3.1.7",
-    "prettier": "^2.8.8",
-    "sass": "^1.81.0",
-    "supertest": "^6.3.4"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "nodemon": "^3.0.2"
   }
 }
