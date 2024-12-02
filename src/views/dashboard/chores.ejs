@@ -1,0 +1,118 @@
+<%- include('../layouts/dashboard', { title: 'Chores' }) %>
+
+<div class="chores-container">
+    <!-- Chores Header -->
+    <div class="section-header">
+        <div class="header-left">
+            <h2>My Chores</h2>
+            <div class="filter-buttons">
+                <button class="btn btn-outline active" data-filter="pending">Pending</button>
+                <button class="btn btn-outline" data-filter="completed">Completed</button>
+                <button class="btn btn-outline" data-filter="all">All</button>
+            </div>
+        </div>
+        <% if (user.role === 'parent') { %>
+        <button class="btn btn-primary" id="addChoreBtn">
+            <i class="fas fa-plus"></i> Add Chore
+        </button>
+        <% } %>
+    </div>
+
+    <!-- Chores Grid -->
+    <div class="chores-grid">
+        <% chores.forEach(chore => { %>
+        <div class="chore-card" data-status="<%= chore.status %>">
+            <div class="chore-header">
+                <h3><%= chore.name %></h3>
+                <span class="points-badge"><%= chore.points %> pts</span>
+            </div>
+            
+            <p class="chore-description"><%= chore.description %></p>
+            
+            <div class="chore-meta">
+                <span class="due-date">
+                    <i class="far fa-calendar"></i>
+                    Due: <%= new Date(chore.due_date).toLocaleDateString() %>
+                </span>
+                <span class="frequency">
+                    <i class="fas fa-sync"></i>
+                    <%= chore.frequency %>
+                </span>
+            </div>
+
+            <div class="chore-actions">
+                <% if (chore.status === 'pending') { %>
+                <button class="btn btn-success btn-sm complete-chore" data-chore-id="<%= chore.id %>">
+                    Complete
+                </button>
+                <% } else if (chore.status === 'completed' && user.role === 'parent') { %>
+                <button class="btn btn-primary btn-sm verify-chore" data-chore-id="<%= chore.id %>">
+                    Verify
+                </button>
+                <% } %>
+                
+                <% if (user.role === 'parent') { %>
+                <button class="btn btn-icon btn-sm edit-chore" data-chore-id="<%= chore.id %>">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-icon btn-sm delete-chore" data-chore-id="<%= chore.id %>">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <% } %>
+            </div>
+        </div>
+        <% }) %>
+    </div>
+</div>
+
+<!-- Add/Edit Chore Modal -->
+<div id="choreModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">Add New Chore</h2>
+            <button class="close-modal">&times;</button>
+        </div>
+        <form id="choreForm">
+            <input type="hidden" id="choreId">
+            <div class="form-group">
+                <label for="choreName">Name</label>
+                <input type="text" id="choreName" required>
+            </div>
+            <div class="form-group">
+                <label for="choreDescription">Description</label>
+                <textarea id="choreDescription" required></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="chorePoints">Points</label>
+                    <input type="number" id="chorePoints" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="choreFrequency">Frequency</label>
+                    <select id="choreFrequency" required>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="once">Once</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="choreAssignee">Assign To</label>
+                <select id="choreAssignee" required>
+                    <% familyMembers.forEach(member => { %>
+                    <% if (member.role === 'child') { %>
+                    <option value="<%= member.id %>"><%= member.username %></option>
+                    <% } %>
+                    <% }) %>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary close-modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Chore</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/chores.js"></script>
