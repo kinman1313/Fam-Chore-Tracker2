@@ -16,13 +16,27 @@ class Database {
             ? path.join(process.env.RENDER_VOLUME_PATH || '/data', 'famchore.db')
             : path.join(__dirname, '../../data/famchore.db');
 
-        // Ensure directory exists
-        const dbDir = path.dirname(dbPath);
-        if (!fs.existsSync(dbDir)) {
-            fs.mkdirSync(dbDir, { recursive: true });
+        // Ensure directory exists with recursive creation and error handling
+        try {
+            const dbDir = path.dirname(dbPath);
+            if (!fs.existsSync(dbDir)) {
+                fs.mkdirSync(dbDir, { recursive: true, mode: 0o755 });
+            }
+        } catch (err) {
+            console.error('Error creating database directory:', err);
+            // Fall back to tmp directory in production
+            if (process.env.NODE_ENV === 'production') {
+                const tmpPath = path.join('/tmp', 'famchore.db');
+                console.log('Falling back to temporary directory:', tmpPath);
+                return this.initializeDb(tmpPath);
+            }
+            throw err;
         }
 
-        // Create database connection with extended configuration
+        return this.initializeDb(dbPath);
+    }
+
+    initializeDb(dbPath) {
         this.db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
             if (err) {
                 console.error('Database connection error:', err);
@@ -33,26 +47,18 @@ class Database {
 
         // Configure database settings
         this.db.serialize(() => {
-            // Enable foreign keys
             this.db.run('PRAGMA foreign_keys = ON');
-            // Enable WAL mode for better concurrent access
             this.db.run('PRAGMA journal_mode = WAL');
-            // Set busy timeout to handle concurrent access
             this.db.run('PRAGMA busy_timeout = 5000');
-            // Enable strict mode
             this.db.run('PRAGMA strict = ON');
         });
 
-        // Handle connection errors
         this.db.on('error', (err) => {
             console.error('Database error:', err);
         });
 
-        // Handle process termination
-        process.on('SIGINT', () => this.cleanup());
-        process.on('SIGTERM', () => this.cleanup());
-
         this.initialized = true;
+        return this.db;
     }
 
     // Wrapper for run to handle promises
@@ -111,6 +117,13 @@ class Database {
 
 // Create singleton instance
 const database = new Database();
-database.initialize();
+
+// Initialize with error handling
+try {
+    database.initialize();
+} catch (err) {
+    console.error('Failed to initialize database:', err);
+    // Don't throw here, let the application handle the error
+}
 
 module.exports = database;
