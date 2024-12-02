@@ -37,9 +37,9 @@ app.use('/dashboard', require('./routes/dashboard'));
 app.use('/api', require('./routes/api'));
 
 app.get('/', (req, res) => {
-    res.redirect('/dashboard');
+    res.send('Hello World!');
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
