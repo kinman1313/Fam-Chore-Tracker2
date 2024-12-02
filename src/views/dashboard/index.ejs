@@ -1,0 +1,138 @@
+<%- include('../layouts/dashboard', { title: 'Dashboard' }) %>
+
+<div class="dashboard-grid">
+    <!-- Quick Stats -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h2 class="card-title">Quick Stats</h2>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <span class="stat-label">Pending Chores</span>
+                <span class="stat-value"><%= stats.pendingChores %></span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Completed Today</span>
+                <span class="stat-value"><%= stats.completedToday %></span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Points Earned</span>
+                <span class="stat-value"><%= stats.pointsEarned %></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Today's Chores -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h2 class="card-title">Today's Chores</h2>
+            <a href="/dashboard/chores" class="btn btn-link">View All</a>
+        </div>
+        <div class="chores-list">
+            <% if (todayChores.length === 0) { %>
+                <p class="empty-state">No chores for today!</p>
+            <% } else { %>
+                <% todayChores.forEach(chore => { %>
+                    <div class="chore-item">
+                        <div class="chore-info">
+                            <h3><%= chore.name %></h3>
+                            <span class="points"><%= chore.points %> points</span>
+                        </div>
+                        <button class="btn btn-success btn-sm complete-chore" 
+                                data-chore-id="<%= chore.id %>">
+                            Complete
+                        </button>
+                    </div>
+                <% }) %>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h2 class="card-title">Recent Activity</h2>
+        </div>
+        <div class="activity-list">
+            <% recentActivity.forEach(activity => { %>
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="fas <%= activity.icon %>"></i>
+                    </div>
+                    <div class="activity-details">
+                        <p><%= activity.description %></p>
+                        <span class="activity-time">
+                            <%= activity.timeAgo %>
+                        </span>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    </div>
+
+    <!-- Points Chart -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h2 class="card-title">Points History</h2>
+        </div>
+        <canvas id="pointsChart"></canvas>
+    </div>
+</div>
+
+<script>
+// Initialize points chart
+const ctx = document.getElementById('pointsChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: <%- JSON.stringify(chartData.labels) %>,
+        datasets: [{
+            label: 'Points Earned',
+            data: <%- JSON.stringify(chartData.points) %>,
+            borderColor: '#3b82f6',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)'
+                }
+            },
+            x: {
+                grid: {
+                    display: false
+                }
+            }
+        }
+    }
+});
+
+// Handle chore completion
+document.querySelectorAll('.complete-chore').forEach(button => {
+    button.addEventListener('click', async (e) => {
+        const choreId = e.target.dataset.choreId;
+        try {
+            const response = await fetch(`/api/chores/${choreId}/complete`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+            if (data.success) {
+                showToast('Success!', 'Chore completed!', 'success');
+                setTimeout(() => location.reload(), 1500);
+            }
+        } catch (error) {
+            showToast('Error', 'Failed to complete chore', 'error');
+        }
+    });
+});
+</script>

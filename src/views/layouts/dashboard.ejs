@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FamChore - <%= title %></title>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modern-normalize@2.0.0/modern-normalize.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <%- style %>
+</head>
+<body class="dashboard-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <img src="/img/logo.svg" alt="FamChore Logo" class="sidebar-logo">
+            <h1>FamChore</h1>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="nav-item <%= path === '/dashboard' ? 'active' : '' %>">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="/dashboard/chores" class="nav-item <%= path.startsWith('/dashboard/chores') ? 'active' : '' %>">
+                <i class="fas fa-tasks"></i> Chores
+            </a>
+            <a href="/dashboard/rewards" class="nav-item <%= path.startsWith('/dashboard/rewards') ? 'active' : '' %>">
+                <i class="fas fa-gift"></i> Rewards
+            </a>
+            <% if (user.role === 'parent') { %>
+            <a href="/dashboard/family" class="nav-item <%= path.startsWith('/dashboard/family') ? 'active' : '' %>">
+                <i class="fas fa-users"></i> Family
+            </a>
+            <a href="/dashboard/settings" class="nav-item <%= path === '/dashboard/settings' ? 'active' : '' %>">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+            <% } %>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <img src="<%= user.avatar || '/img/default-avatar.png' %>" alt="Avatar" class="user-avatar">
+                <div class="user-details">
+                    <span class="user-name"><%= user.username %></span>
+                    <span class="user-role"><%= user.role %></span>
+                </div>
+            </div>
+            <a href="/auth/logout" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="content-header">
+            <h1><%= title %></h1>
+            <div class="header-actions">
+                <div class="points-display">
+                    <i class="fas fa-star"></i>
+                    <span><%= user.points || 0 %> points</span>
+                </div>
+                <button id="notificationsBtn" class="icon-btn">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">3</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="content-body">
+            <%- body %>
+        </div>
+    </main>
+
+    <!-- Notifications Panel -->
+    <div id="notificationsPanel" class="notifications-panel hidden">
+        <div class="notifications-header">
+            <h3>Notifications</h3>
+            <button class="close-btn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="notifications-list">
+            <!-- Notifications will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <%- script %>
+</body>
+</html>
