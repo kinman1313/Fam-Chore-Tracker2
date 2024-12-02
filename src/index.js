@@ -11,20 +11,22 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Import routes
+const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
 
 // Basic test route
 app.get('/', (req, res) => {
-    res.send('Fam Chore Tracker is running!');
+    res.redirect('/login');  // Redirect root to login
 });
+
+// Use routes
+app.use('/', authRoutes);  // This will handle /login and /register
+app.use('/dashboard', dashboardRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({ status: 'healthy' });
 });
-
-// Use dashboard routes
-app.use('/dashboard', dashboardRoutes);
 
 // Start server
 const port = process.env.PORT || 10000;
