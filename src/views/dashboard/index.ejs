@@ -1,136 +1,35 @@
-<%- include('../layouts/dashboard', { title: 'Dashboard' }) %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <h1>Welcome, <%= user.name %></h1>
+        </header>
 
-<div class="dashboard-grid">
-    <!-- Quick Stats -->
-    <div class="dashboard-card">
-        <div class="card-header">
-            <h2 class="card-title">Quick Stats</h2>
-        </div>
-        <div class="stats-grid">
-            <div class="stat-item">
-                <span class="stat-label">Pending Chores</span>
-                <span class="stat-value"><%= stats.pending_chores %></span>
+        <div class="stats-container">
+            <div class="stat-box">
+                <h3>Pending Chores</h3>
+                <p><%= stats.pending_chores %></p>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Completed Today</span>
-                <span class="stat-value"><%= stats.completed_today %></span>
+            <div class="stat-box">
+                <h3>Completed Today</h3>
+                <p><%= stats.completed_today %></p>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Points Earned</span>
-                <span class="stat-value"><%= stats.total_points_earned %></span>
+            <div class="stat-box">
+                <h3>Total Points</h3>
+                <p><%= stats.total_points_earned %></p>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Completion Rate</span>
-                <span class="stat-value"><%= stats.completion_rate %>%</span>
+            <div class="stat-box">
+                <h3>Completion Rate</h3>
+                <p><%= stats.completion_rate %>%</p>
             </div>
         </div>
     </div>
-
-    <!-- Weekly Progress -->
-    <div class="dashboard-card">
-        <div class="card-header">
-            <h2 class="card-title">Weekly Progress</h2>
-        </div>
-        <canvas id="weeklyProgressChart"></canvas>
-    </div>
-
-    <!-- Leaderboard -->
-    <div class="dashboard-card">
-        <div class="card-header">
-            <h2 class="card-title">Family Leaderboard</h2>
-            <select id="leaderboardPeriod" class="form-select">
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="year">This Year</option>
-                <option value="all">All Time</option>
-            </select>
-        </div>
-        <div class="leaderboard-list">
-            <% leaderboard.forEach((member, index) => { %>
-            <div class="leaderboard-item <%= member.id === user.id ? 'current-user' : '' %>">
-                <div class="rank"><%= index + 1 %></div>
-                <div class="member-info">
-                    <span class="username"><%= member.username %></span>
-                    <span class="stats">
-                        <%= member.chores_completed %> chores • <%= member.points_earned %> points
-                    </span>
-                </div>
-            </div>
-            <% }) %>
-        </div>
-    </div>
-
-    <!-- Recent Activity -->
-    <div class="dashboard-card">
-        <div class="card-header">
-            <h2 class="card-title">Recent Activity</h2>
-        </div>
-        <div class="activity-list">
-            <% recentActivity.forEach(activity => { %>
-            <div class="activity-item">
-                <div class="activity-icon">
-                    <i class="fas <%= activity.icon %>"></i>
-                </div>
-                <div class="activity-details">
-                    <p><%= activity.description %></p>
-                    <span class="activity-time">
-                        <%= activity.timeAgo %>
-                    </span>
-                </div>
-            </div>
-            <% }) %>
-        </div>
-    </div>
-</div>
-
-<script>
-// Initialize weekly progress chart
-const weeklyCtx = document.getElementById('weeklyProgressChart').getContext('2d');
-new Chart(weeklyCtx, {
-    type: 'bar',
-    data: {
-        labels: <%- JSON.stringify(weeklyProgress.map(d => d.date)) %>,
-        datasets: [{
-            label: 'Completed Chores',
-            data: <%- JSON.stringify(weeklyProgress.map(d => d.completed_chores)) %>,
-            backgroundColor: '#3b82f6'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    stepSize: 1
-                }
-            }
-        }
-    }
-});
-
-// Handle leaderboard period change
-document.getElementById('leaderboardPeriod').addEventListener('change', async (e) => {
-    const period = e.target.value;
-    try {
-        const response = await fetch(`/api/analytics/leaderboard?period=${period}`);
-        const data = await response.json();
-        
-        const leaderboardList = document.querySelector('.leaderboard-list');
-        leaderboardList.innerHTML = data.map((member, index) => `
-            <div class="leaderboard-item ${member.id === ${user.id} ? 'current-user' : ''}">
-                <div class="rank">${index + 1}</div>
-                <div class="member-info">
-                    <span class="username">${member.username}</span>
-                    <span class="stats">
-                        ${member.chores_completed} chores • ${member.points_earned} points
-                    </span>
-                </div>
-            </div>
-        `).join('');
-    } catch (error) {
-        console.error('Failed to update leaderboard:', error);
-    }
-});
-</script>
+</body>
+</html>
