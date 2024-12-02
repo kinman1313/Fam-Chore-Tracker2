@@ -9,42 +9,54 @@
         <div class="stats-grid">
             <div class="stat-item">
                 <span class="stat-label">Pending Chores</span>
-                <span class="stat-value"><%= stats.pendingChores %></span>
+                <span class="stat-value"><%= stats.pending_chores %></span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Completed Today</span>
-                <span class="stat-value"><%= stats.completedToday %></span>
+                <span class="stat-value"><%= stats.completed_today %></span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Points Earned</span>
-                <span class="stat-value"><%= stats.pointsEarned %></span>
+                <span class="stat-value"><%= stats.total_points_earned %></span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Completion Rate</span>
+                <span class="stat-value"><%= stats.completion_rate %>%</span>
             </div>
         </div>
     </div>
 
-    <!-- Today's Chores -->
+    <!-- Weekly Progress -->
     <div class="dashboard-card">
         <div class="card-header">
-            <h2 class="card-title">Today's Chores</h2>
-            <a href="/dashboard/chores" class="btn btn-link">View All</a>
+            <h2 class="card-title">Weekly Progress</h2>
         </div>
-        <div class="chores-list">
-            <% if (todayChores.length === 0) { %>
-                <p class="empty-state">No chores for today!</p>
-            <% } else { %>
-                <% todayChores.forEach(chore => { %>
-                    <div class="chore-item">
-                        <div class="chore-info">
-                            <h3><%= chore.name %></h3>
-                            <span class="points"><%= chore.points %> points</span>
-                        </div>
-                        <button class="btn btn-success btn-sm complete-chore" 
-                                data-chore-id="<%= chore.id %>">
-                            Complete
-                        </button>
-                    </div>
-                <% }) %>
-            <% } %>
+        <canvas id="weeklyProgressChart"></canvas>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h2 class="card-title">Family Leaderboard</h2>
+            <select id="leaderboardPeriod" class="form-select">
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="year">This Year</option>
+                <option value="all">All Time</option>
+            </select>
+        </div>
+        <div class="leaderboard-list">
+            <% leaderboard.forEach((member, index) => { %>
+            <div class="leaderboard-item <%= member.id === user.id ? 'current-user' : '' %>">
+                <div class="rank"><%= index + 1 %></div>
+                <div class="member-info">
+                    <span class="username"><%= member.username %></span>
+                    <span class="stats">
+                        <%= member.chores_completed %> chores • <%= member.points_earned %> points
+                    </span>
+                </div>
+            </div>
+            <% }) %>
         </div>
     </div>
 
@@ -55,84 +67,70 @@
         </div>
         <div class="activity-list">
             <% recentActivity.forEach(activity => { %>
-                <div class="activity-item">
-                    <div class="activity-icon">
-                        <i class="fas <%= activity.icon %>"></i>
-                    </div>
-                    <div class="activity-details">
-                        <p><%= activity.description %></p>
-                        <span class="activity-time">
-                            <%= activity.timeAgo %>
-                        </span>
-                    </div>
+            <div class="activity-item">
+                <div class="activity-icon">
+                    <i class="fas <%= activity.icon %>"></i>
                 </div>
+                <div class="activity-details">
+                    <p><%= activity.description %></p>
+                    <span class="activity-time">
+                        <%= activity.timeAgo %>
+                    </span>
+                </div>
+            </div>
             <% }) %>
         </div>
-    </div>
-
-    <!-- Points Chart -->
-    <div class="dashboard-card">
-        <div class="card-header">
-            <h2 class="card-title">Points History</h2>
-        </div>
-        <canvas id="pointsChart"></canvas>
     </div>
 </div>
 
 <script>
-// Initialize points chart
-const ctx = document.getElementById('pointsChart').getContext('2d');
-new Chart(ctx, {
-    type: 'line',
+// Initialize weekly progress chart
+const weeklyCtx = document.getElementById('weeklyProgressChart').getContext('2d');
+new Chart(weeklyCtx, {
+    type: 'bar',
     data: {
-        labels: <%- JSON.stringify(chartData.labels) %>,
+        labels: <%- JSON.stringify(weeklyProgress.map(d => d.date)) %>,
         datasets: [{
-            label: 'Points Earned',
-            data: <%- JSON.stringify(chartData.points) %>,
-            borderColor: '#3b82f6',
-            tension: 0.4
+            label: 'Completed Chores',
+            data: <%- JSON.stringify(weeklyProgress.map(d => d.completed_chores)) %>,
+            backgroundColor: '#3b82f6'
         }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: false
-            }
-        },
         scales: {
             y: {
                 beginAtZero: true,
-                grid: {
-                    color: 'rgba(255, 255, 255, 0.1)'
-                }
-            },
-            x: {
-                grid: {
-                    display: false
+                ticks: {
+                    stepSize: 1
                 }
             }
         }
     }
 });
 
-// Handle chore completion
-document.querySelectorAll('.complete-chore').forEach(button => {
-    button.addEventListener('click', async (e) => {
-        const choreId = e.target.dataset.choreId;
-        try {
-            const response = await fetch(`/api/chores/${choreId}/complete`, {
-                method: 'POST'
-            });
-            const data = await response.json();
-            if (data.success) {
-                showToast('Success!', 'Chore completed!', 'success');
-                setTimeout(() => location.reload(), 1500);
-            }
-        } catch (error) {
-            showToast('Error', 'Failed to complete chore', 'error');
-        }
-    });
+// Handle leaderboard period change
+document.getElementById('leaderboardPeriod').addEventListener('change', async (e) => {
+    const period = e.target.value;
+    try {
+        const response = await fetch(`/api/analytics/leaderboard?period=${period}`);
+        const data = await response.json();
+        
+        const leaderboardList = document.querySelector('.leaderboard-list');
+        leaderboardList.innerHTML = data.map((member, index) => `
+            <div class="leaderboard-item ${member.id === ${user.id} ? 'current-user' : ''}">
+                <div class="rank">${index + 1}</div>
+                <div class="member-info">
+                    <span class="username">${member.username}</span>
+                    <span class="stats">
+                        ${member.chores_completed} chores • ${member.points_earned} points
+                    </span>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to update leaderboard:', error);
+    }
 });
 </script>
