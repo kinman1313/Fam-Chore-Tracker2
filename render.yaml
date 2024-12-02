@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: famchore
+    name: famchores
     env: node
     buildCommand: npm install
     startCommand: npm run setup:prod && npm start
@@ -12,4 +12,6 @@ services:
     disk:
       name: data
       mountPath: /data
-      sizeGB: 1
+      sizeGB: 5
+    healthCheckPath: /health
+    autoDeploy: true
