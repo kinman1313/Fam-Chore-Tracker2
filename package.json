@@ -5,8 +5,8 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
     "migrate": "node src/database/migrations/index.js",
     "migrate:down": "node src/database/migrations/index.js down",
     "seed": "node src/database/seeds/index.js",
