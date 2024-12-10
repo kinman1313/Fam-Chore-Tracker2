@@ -84,7 +84,9 @@ app.use((err, req, res, next) => {
     });
 });
 
-const PORT = process.env.PORT || 3000;
+
+const PORT = process.env.PORT || 3000;  // This will use Render's PORT or fallback to 3000 locally
+
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
