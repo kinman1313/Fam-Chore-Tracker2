@@ -1,12 +1,21 @@
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
-const sessionMiddleware = require('./src/config/session');
+const session = require('express-session');
 const passport = require('passport');
 const path = require('path');
 const helmet = require('helmet');
 const cors = require('cors');
+const mongoose = require('mongoose');
 const connectDB = require('./src/config/database');
+
+// Connect to MongoDB
+connectDB()
+    .then(() => {
+        console.log('MongoDB connected successfully');
+    })
+    .catch((err) => {
+        console.error('MongoDB connection error:', err);
+    });
 
 // Import routes
 const authRoutes = require('./src/routes/auth');
@@ -27,12 +36,25 @@ app.use(helmet({
 }));
 app.use(cors());
 
-// Basic Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(sessionMiddleware);
+// Session Configuration
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
+
+// Passport Middleware
 app.use(passport.initialize());
 app.use(passport.session());
+
+// Body Parser Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Static Files
 app.use(express.static('public'));
@@ -53,15 +75,12 @@ app.get('/', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/chores', choreRoutes);
 
-// Connect to Database
-connectDB();
-
 // Error Handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).render('error', { 
         title: 'Error',
-        error: 'Something went wrong!' 
+        error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong!' 
     });
 });
 
