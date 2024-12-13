@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import StatsCard from './StatsCard';
 import RecentActivity from './RecentActivity';
 
 const DashboardOverview = () => {
-  const stats = [
+  // Move stats data to useMemo to prevent unnecessary recreations
+  const stats = useMemo(() => [
     {
       title: 'Pending Chores',
       value: '12',
@@ -29,7 +30,20 @@ const DashboardOverview = () => {
       icon: '🔥',
       trend: 'Personal best!'
     }
-  ];
+  ], []);
+
+  // Extract Leaderboard component for better organization
+  const LeaderboardItem = ({ member, index }) => (
+    <div className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.05)] rounded-lg">
+      <div className="flex items-center space-x-3">
+        <span className="text-[#00ff9f] font-semibold">#{index + 1}</span>
+        <span className="text-white">{member}</span>
+      </div>
+      <span className="text-gray-400">{(400 - index * 75)} pts</span>
+    </div>
+  );
+
+  const familyMembers = useMemo(() => ['Mom', 'Dad', 'Sarah', 'Tommy'], []);
 
   return (
     <div className="space-y-6">
@@ -39,7 +53,7 @@ const DashboardOverview = () => {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
         {stats.map((stat, index) => (
-          <StatsCard key={index} {...stat} delay={index * 0.1} />
+          <StatsCard key={`stat-${index}`} {...stat} delay={index * 0.1} />
         ))}
       </motion.div>
 
@@ -64,17 +78,12 @@ const DashboardOverview = () => {
         >
           <h2 className="text-xl font-semibold text-white mb-4">Family Leaderboard</h2>
           <div className="space-y-4">
-            {['Mom', 'Dad', 'Sarah', 'Tommy'].map((member, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.05)] rounded-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  <span className="text-[#00ff9f] font-semibold">#{index + 1}</span>
-                  <span className="text-white">{member}</span>
-                </div>
-                <span className="text-gray-400">{(400 - index * 75)} pts</span>
-              </div>
+            {familyMembers.map((member, index) => (
+              <LeaderboardItem 
+                key={`member-${index}`} 
+                member={member} 
+                index={index} 
+              />
             ))}
           </div>
         </motion.div>

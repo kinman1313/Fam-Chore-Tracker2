@@ -1,16 +1,16 @@
-const express = require('express');
-const router = express.Router();
+import express from 'express';
+import { protect, authorize } from '../middleware/auth';
+import { getAllChores, createChore, getChoreById, updateChore, deleteChore } from '../controllers/choreController';
 
-// Basic routes for testing
-router.get('/', (req, res) => {
-    res.render('chores/index', { 
-        title: 'Chores List',
-        chores: [] 
-    });
-});
+const router = express.Router({ mergeParams: true });
 
-router.get('/create', (req, res) => {
-    res.render('chores/create', { title: 'Create Chore' });
-});
+router.route('/')
+    .get(protect, getAllChores)
+    .post(protect, authorize('parent'), createChore);
 
-module.exports = router;
+router.route('/:choreId')
+    .get(protect, getChoreById)
+    .put(protect, authorize('parent'), updateChore)
+    .delete(protect, authorize('parent'), deleteChore);
+
+export default router;
