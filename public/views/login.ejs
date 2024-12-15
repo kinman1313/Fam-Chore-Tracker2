@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Tech Platform</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="dark-mode">
+    <div class="container">
+        <header>
+            <h1>Welcome Back</h1>
+        </header>
+
+        <div class="auth-container glass-card">
+            <% if (messages.error) { %>
+                <div class="alert alert-error">
+                    <%= messages.error %>
+                </div>
+            <% } %>
+
+            <form id="loginForm" action="/auth/login" method="POST">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        class="form-control" 
+                        required 
+                        autocomplete="email"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        class="form-control" 
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Login
+                </button>
+            </form>
+
+            <div class="auth-links">
+                <p>Don't have an account? <a href="/register">Register</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+</html>

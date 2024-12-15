@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Tech Platform</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="dark-mode">
+    <nav class="nav">
+        <div class="container">
+            <div class="nav-content">
+                <h2>Admin Dashboard</h2>
+                <div class="nav-links">
+                    <a href="/dashboard" class="nav-link">Dashboard</a>
+                    <a href="#" class="nav-link" id="logoutBtn">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="grid">
+            <!-- Stats Cards -->
+            <div class="glass-card">
+                <h3>Total Users</h3>
+                <p class="stat-number"><%= userCount || 0 %></p>
+            </div>
+
+            <div class="glass-card">
+                <h3>Active Sessions</h3>
+                <p class="stat-number"><%= activeSessions || 0 %></p>
+            </div>
+        </div>
+
+        <!-- User Management Section -->
+        <div class="glass-card">
+            <h2>User Management</h2>
+            <div class="table-responsive">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (users && users.length > 0) { %>
+                            <% users.forEach(user => { %>
+                                <tr>
+                                    <td><%= user.username %></td>
+                                    <td><%= user.email %></td>
+                                    <td><%= user.role %></td>
+                                    <td>
+                                        <button class="btn btn-small" 
+                                                onclick="editUser('<%= user._id %>')">
+                                            Edit
+                                        </button>
+                                        <button class="btn btn-small btn-danger" 
+                                                onclick="deleteUser('<%= user._id %>')">
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="4">No users found</td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+</html>

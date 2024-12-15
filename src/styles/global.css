@@ -1,0 +1,20 @@
+/* Add these to your global CSS */
+* {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.backdrop-blur {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Fix background-clip order */
+.gradient-text {
+  background: linear-gradient(99deg, #6942EB 7.19%, #504CF8 97.84%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+} 

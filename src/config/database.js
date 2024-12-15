@@ -1,129 +1,62 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+import mongoose from 'mongoose';
 
-class Database {
-    constructor() {
-        this.db = null;
-        this.initialized = false;
+const connectDB = async () => {
+    if (!process.env.MONGODB_URI) {
+        console.error('MongoDB URI is not defined in environment variables');
+        process.exit(1);
     }
 
-    initialize() {
-        if (this.initialized) return;
+    const options = {
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+        family: 4,
+        retryWrites: true,
+        writeConcern: {
+            w: 'majority'
+        }
+    };
 
-        // Determine database path based on environment
-        const dbPath = process.env.NODE_ENV === 'production'
-            ? path.join(process.env.RENDER_VOLUME_PATH || '/data', 'famchore.db')
-            : path.join(__dirname, '../../data/famchore.db');
+    try {
+        const conn = await mongoose.connect(process.env.MONGODB_URI, options);
+        console.log(`MongoDB Connected: ${conn.connection.host}`);
+    } catch (error) {
+        console.error(`Error connecting to MongoDB: ${error.message}`);
+        process.exit(1);
+    }
 
-        // Ensure directory exists with recursive creation and error handling
+    mongoose.connection.on('error', (err) => {
+        console.error('MongoDB connection error:', err);
+        setTimeout(connectDB, 5000);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+        console.log('MongoDB disconnected. Attempting to reconnect...');
+        setTimeout(connectDB, 5000);
+    });
+
+    setInterval(async () => {
         try {
-            const dbDir = path.dirname(dbPath);
-            if (!fs.existsSync(dbDir)) {
-                fs.mkdirSync(dbDir, { recursive: true, mode: 0o755 });
+            const stats = await mongoose.connection.db.stats();
+            const dbSizeInGB = stats.dataSize / (1024 * 1024 * 1024);
+            if (dbSizeInGB > 4.5) {
+                console.warn(`Database size warning: ${dbSizeInGB.toFixed(2)}GB used of 5GB limit`);
             }
+        } catch (error) {
+            console.error('Failed to check database size:', error);
+        }
+    }, 24 * 60 * 60 * 1000);
+
+    process.on('SIGINT', async () => {
+        try {
+            await mongoose.connection.close();
+            console.log('MongoDB connection closed through app termination');
+            process.exit(0);
         } catch (err) {
-            console.error('Error creating database directory:', err);
-            // Fall back to tmp directory in production
-            if (process.env.NODE_ENV === 'production') {
-                const tmpPath = path.join('/tmp', 'famchore.db');
-                console.log('Falling back to temporary directory:', tmpPath);
-                return this.initializeDb(tmpPath);
-            }
-            throw err;
+            console.error('Error during shutdown:', err);
+            process.exit(1);
         }
+    });
+};
 
-        return this.initializeDb(dbPath);
-    }
-
-    initializeDb(dbPath) {
-        this.db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
-            if (err) {
-                console.error('Database connection error:', err);
-                throw err;
-            }
-            console.log('Connected to database at:', dbPath);
-        });
-
-        // Configure database settings
-        this.db.serialize(() => {
-            this.db.run('PRAGMA foreign_keys = ON');
-            this.db.run('PRAGMA journal_mode = WAL');
-            this.db.run('PRAGMA busy_timeout = 5000');
-            this.db.run('PRAGMA strict = ON');
-        });
-
-        this.db.on('error', (err) => {
-            console.error('Database error:', err);
-        });
-
-        this.initialized = true;
-        return this.db;
-    }
-
-    // Wrapper for run to handle promises
-    run(sql, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.run(sql, params, function(err) {
-                if (err) reject(err);
-                else resolve(this);
-            });
-        });
-    }
-
-    // Wrapper for get to handle promises
-    get(sql, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.get(sql, params, (err, row) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
-    }
-
-    // Wrapper for all to handle promises
-    all(sql, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.all(sql, params, (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
-    }
-
-    // Cleanup database connections
-    cleanup() {
-        if (this.db) {
-            console.log('Closing database connection...');
-            this.db.close((err) => {
-                if (err) {
-                    console.error('Error closing database:', err);
-                    process.exit(1);
-                }
-                console.log('Database connection closed.');
-                process.exit(0);
-            });
-        }
-    }
-
-    // Get database instance
-    getInstance() {
-        if (!this.initialized) {
-            this.initialize();
-        }
-        return this.db;
-    }
-}
-
-// Create singleton instance
-const database = new Database();
-
-// Initialize with error handling
-try {
-    database.initialize();
-} catch (err) {
-    console.error('Failed to initialize database:', err);
-    // Don't throw here, let the application handle the error
-}
-
-module.exports = database;
+module.exports = connectDB;

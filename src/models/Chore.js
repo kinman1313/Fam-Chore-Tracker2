@@ -1,52 +1,75 @@
-const db = require('../config/database');
+import mongoose from 'mongoose';
 
-class Chore {
-    static async findById(id) {
-        return new Promise((resolve, reject) => {
-            db.get('SELECT * FROM chores WHERE id = ?', [id], (err, row) => {
-                if (err) reject(err);
-                resolve(row);
-            });
-        });
+const choreSchema = new mongoose.Schema({
+    title: {
+        type: String,
+        required: [true, 'Chore title is required'],
+        trim: true
+    },
+    description: {
+        type: String,
+        trim: true
+    },
+    familyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Family',
+        required: true
+    },
+    assignedTo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    points: {
+        type: Number,
+        default: 0
+    },
+    dueDate: {
+        type: Date
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'in-progress', 'completed', 'verified', 'overdue'],
+        default: 'pending'
+    },
+    recurring: {
+        isRecurring: {
+            type: Boolean,
+            default: false
+        },
+        frequency: {
+            type: String,
+            enum: ['daily', 'weekly', 'monthly', null],
+            default: null
+        },
+        endDate: {
+            type: Date
+        }
+    },
+    priority: {
+        type: String,
+        enum: ['low', 'medium', 'high'],
+        default: 'medium'
+    },
+    requiresPhoto: {
+        type: Boolean,
+        default: false
+    },
+    completionPhoto: {
+        type: String
     }
+}, {
+    timestamps: true
+});
 
-    static async getByFamily(familyId) {
-        return new Promise((resolve, reject) => {
-            db.all('SELECT * FROM chores WHERE family_id = ?', [familyId], (err, rows) => {
-                if (err) reject(err);
-                resolve(rows);
-            });
-        });
-    }
+// Index for faster queries
+choreSchema.index({ familyId: 1, status: 1 });
+choreSchema.index({ assignedTo: 1, status: 1 });
 
-    static async getPendingByUser(userId) {
-        return new Promise((resolve, reject) => {
-            db.all(`
-                SELECT c.*, ca.due_date, ca.status
-                FROM chores c
-                JOIN chore_assignments ca ON c.id = ca.chore_id
-                WHERE ca.assigned_to = ? AND ca.status = 'pending'
-                ORDER BY ca.due_date ASC
-            `, [userId], (err, rows) => {
-                if (err) reject(err);
-                resolve(rows);
-            });
-        });
-    }
+const Chore = mongoose.model('Chore', choreSchema);
 
-    static async create({ familyId, name, description, points, frequency, createdBy }) {
-        return new Promise((resolve, reject) => {
-            db.run(
-                `INSERT INTO chores (family_id, name, description, points, frequency, created_by) 
-                 VALUES (?, ?, ?, ?, ?, ?)`,
-                [familyId, name, description, points, frequency, createdBy],
-                function(err) {
-                    if (err) reject(err);
-                    resolve(this.lastID);
-                }
-            );
-        });
-    }
-}
-
-module.exports = Chore;
+export default Chore;

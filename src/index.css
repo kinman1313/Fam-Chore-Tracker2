@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-100 min-h-screen antialiased;
+    background-attachment: fixed;
+  }
+
+  h1 {
+    @apply text-3xl font-bold text-white;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold text-white;
+  }
+
+  h3 {
+    @apply text-xl font-semibold text-white;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-gray-900/70 backdrop-blur-lg border border-gray-700/50 shadow-xl;
+  }
+
+  .glass-input {
+    @apply bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400
+    focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm
+    transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md
+    hover:from-blue-700 hover:to-blue-800
+    focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-gray-900
+    transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+    shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 active:scale-95;
+  }
+  
+  .btn-secondary {
+    @apply px-4 py-2 bg-gray-700/50 text-gray-100 rounded-md
+    hover:bg-gray-600/50
+    focus:outline-none focus:ring-2 focus:ring-gray-500/50 focus:ring-offset-2 focus:ring-offset-gray-900
+    transition-all duration-200 backdrop-blur-sm
+    shadow-lg shadow-gray-900/20 hover:shadow-gray-900/40 active:scale-95;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-md
+    hover:from-red-700 hover:to-red-800
+    focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-2 focus:ring-offset-gray-900
+    transition-all duration-200
+    shadow-lg shadow-red-600/20 hover:shadow-red-600/40 active:scale-95;
+  }
+  
+  .input-field {
+    @apply w-full px-3 py-2 rounded-md glass-input
+    disabled:bg-gray-800/30 disabled:cursor-not-allowed;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-gray-300 mb-1;
+  }
+  
+  .card {
+    @apply rounded-lg p-6 glass-card hover:shadow-2xl transition-shadow duration-200;
+  }
+
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+  }
+
+  .error-text {
+    @apply text-red-400 text-sm mt-1;
+  }
+
+  .success-text {
+    @apply text-green-400 text-sm mt-1;
+  }
+
+  .loading-spinner {
+    @apply animate-spin h-5 w-5 text-blue-400;
+  }
+
+  .nav-link {
+    @apply text-gray-300 hover:text-white transition-colors duration-200
+    relative after:absolute after:bottom-0 after:left-0 after:h-0.5 
+    after:w-0 after:bg-blue-500 after:transition-all after:duration-200
+    hover:after:w-full;
+  }
+
+  .nav-link-active {
+    @apply text-white font-medium after:w-full;
+  }
+
+  .glass-navbar {
+    @apply bg-gray-900/80 backdrop-blur-lg border-b border-gray-700/50 shadow-lg;
+  }
+
+  .glass-dropdown {
+    @apply bg-gray-800/90 backdrop-blur-lg border border-gray-700/50 shadow-xl rounded-lg
+    divide-y divide-gray-700/50;
+  }
+
+  .dropdown-item {
+    @apply px-4 py-2 text-sm text-gray-300 hover:bg-gray-700/50 hover:text-white
+    transition-colors duration-200 cursor-pointer;
+  }
+
+  .animate-dropdown {
+    animation: dropdownIn 0.2s ease-out;
+  }
+
+  .animate-slide-in {
+    animation: slideInFromRight 0.3s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+} 
