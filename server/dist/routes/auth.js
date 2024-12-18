@@ -116,7 +116,11 @@ router.post('/login', async (req, res) => {
     }
 });
 router.get('/test', (req, res) => {
-    res.json({ message: 'Auth routes are working' });
+    console.log('Test endpoint hit');
+    res.status(200).json({
+        message: 'Auth routes are working',
+        timestamp: new Date().toISOString()
+    });
 });
 export default router;
 //# sourceMappingURL=auth.js.map
