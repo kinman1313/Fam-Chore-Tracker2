@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <h1>Welcome, <%= user.name %></h1>
+        </header>
+
+        <div class="stats-container">
+            <div class="stat-box">
+                <h3>Pending Chores</h3>
+                <p><%= stats.pending_chores %></p>
+            </div>
+            <div class="stat-box">
+                <h3>Completed Today</h3>
+                <p><%= stats.completed_today %></p>
+            </div>
+            <div class="stat-box">
+                <h3>Total Points</h3>
+                <p><%= stats.total_points_earned %></p>
+            </div>
+            <div class="stat-box">
+                <h3>Completion Rate</h3>
+                <p><%= stats.completion_rate %>%</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

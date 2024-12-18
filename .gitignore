@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+node_modules/
+.env
+data
+*.log
+.DS_Store
+=======
 # Environment variables
 .env
 .env.local
@@ -18,3 +25,4 @@ yarn-error.log*
 .DS_Store
 *.log
 .env
+>>>>>>> fam-chore-tracker2-new

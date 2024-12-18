@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Chores - Family Chore Tracker</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+</head>
+<body class="dashboard-body">
+    <!-- Navigation Bar -->
+    <nav class="dashboard-nav">
+        <div class="nav-content">
+            <h1>My Chores</h1>
+            <div class="nav-actions">
+                <!-- Notifications -->
+                <div class="notifications-wrapper">
+                    <button id="notifications-toggle" class="notifications-btn">
+                        <i class="fas fa-bell"></i>
+                        <span id="notifications-badge" class="notifications-badge"></span>
+                    </button>
+                    <div id="notifications-container" class="notifications-container"></div>
+                </div>
+                
+                <!-- Points Display -->
+                <div class="points-display">
+                    <i class="fas fa-star"></i>
+                    <span id="points-count"><%= userPoints %> points</span>
+                </div>
+                
+                <!-- User Menu -->
+                <div class="user-menu">
+                    <span class="username">Hi, <%= username %>!</span>
+                    <a href="/logout" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <!-- Progress Overview -->
+        <section class="progress-section">
+            <div class="progress-cards">
+                <div class="progress-card">
+                    <i class="fas fa-tasks"></i>
+                    <div class="progress-info">
+                        <h3>Today's Chores</h3>
+                        <p class="progress-count"><%= todayChores %></p>
+                    </div>
+                </div>
+                
+                <div class="progress-card">
+                    <i class="fas fa-check-circle"></i>
+                    <div class="progress-info">
+                        <h3>Completed</h3>
+                        <p class="progress-count"><%= completedChores %></p>
+                    </div>
+                </div>
+                
+                <div class="progress-card">
+                    <i class="fas fa-fire"></i>
+                    <div class="progress-info">
+                        <h3>Streak</h3>
+                        <p class="progress-count"><%= streak %> days</p>
+                    </div>
+                </div>
+                
+                <div class="progress-card">
+                    <i class="fas fa-trophy"></i>
+                    <div class="progress-info">
+                        <h3>Achievements</h3>
+                        <p class="progress-count"><%= achievements.length %></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- My Chores Section -->
+        <section class="my-chores-section">
+            <div class="section-header">
+                <h2>My Chores</h2>
+                <select id="filterStatus" class="filter-select">
+                    <option value="all">All Chores</option>
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+
+            <div class="chores-list">
+                <% if (chores.length === 0) { %>
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <h3>All Caught Up!</h3>
+                        <p>You have no chores assigned right now.</p>
+                    </div>
+                <% } else { %>
+                    <% chores.forEach(chore => { %>
+                        <div class="chore-item <%= chore.completed ? 'completed' : '' %>" 
+                             data-id="<%= chore.id %>">
+                            <div class="chore-content">
+                                <div class="chore-header">
+                                    <h3><%= chore.name %></h3>
+                                    <span class="due-date">
+                                        <i class="fas fa-calendar"></i>
+                                        Due: <%= moment(chore.due_date).format('MMM D, YYYY') %>
+                                    </span>
+                                </div>
+                                <% if (chore.completed && chore.completed_at) { %>
+                                    <div class="completion-info">
+                                        <i class="fas fa-check"></i>
+                                        Completed on <%= moment(chore.completed_at).format('MMM D, YYYY') %>
+                                    </div>
+                                <% } %>
+                            </div>
+                            <button 
+                                onclick="toggleChore(<%= chore.id %>)"
+                                class="toggle-btn <%= chore.completed ? 'completed' : '' %>"
+                                <%= chore.verified ? 'disabled' : '' %>
+                                title="<%= chore.completed ? 'Mark as incomplete' : 'Mark as complete' %>">
+                                <i class="fas <%= chore.completed ? 'fa-times-circle' : 'fa-check-circle' %>"></i>
+                            </button>
+                            </button>
+                            </button>
+                        </div>
+                    <% }); %>
+                <% } %>
+            </div>
+        </section>
+
+        <!-- Rewards Section -->
+        <section class="rewards-section">
+            <h2>Available Rewards</h2>
+            <div class="rewards-grid">
+                <% rewards.forEach(reward => { %>
+                    <div class="reward-card">
+                        <div class="reward-icon">
+                            <i class="fas fa-gift"></i>
+                        </div>
+                        <h3><%= reward.name %></h3>
+                        <p><%= reward.description %></p>
+                        <div class="reward-cost">
+                            <i class="fas fa-star"></i>
+                            <%= reward.pointsCost %> points
+                        </div>
+                        <button 
+                            onclick="redeemReward('<%= reward.id %>')"
+                            class="redeem-btn"
+                            <%= userPoints >= reward.pointsCost ? '' : 'disabled' %>>
+                            Redeem
+                        </button>
+                    </div>
+                <% }); %>
+            </div>
+        </section>
+
+        <!-- Achievements Section -->
+        <section class="achievements-section">
+            <h2>My Achievements</h2>
+            <div class="achievements-grid">
+                <% achievements.forEach(achievement => { %>
+                    <div class="achievement-card <%= achievement.earned ? 'earned' : 'locked' %>">
+                        <div class="achievement-icon">
+                            <i class="fas <%= achievement.icon %>"></i>
+                        </div>
+                        <h3><%= achievement.name %></h3>
+                        <p><%= achievement.description %></p>
+                        <% if (achievement.earned) { %>
+                            <div class="earned-date">
+                                Earned on <%= moment(achievement.earnedAt).format('MMM D, YYYY') %>
+                            </div>
+                        <% } %>
+                    </div>
+                <% }); %>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/notifications.js"></script>
+    <script src="/js/statistics.js"></script>
+    <script src="/js/child-dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<%- include('../layouts/dashboard', { title: 'Family Management' }) %>
+
+<div class="family-container">
+    <!-- Family Header -->
+    <div class="section-header">
+        <div class="header-left">
+            <h2><%= family.name %></h2>
+            <button class="btn btn-secondary" id="editFamilyNameBtn">
+                <i class="fas fa-edit"></i> Edit Name
+            </button>
+        </div>
+        <button class="btn btn-primary" id="inviteMemberBtn">
+            <i class="fas fa-user-plus"></i> Invite Member
+        </button>
+    </div>
+
+    <!-- Family Members -->
+    <div class="members-section">
+        <h3>Family Members</h3>
+        <div class="members-grid">
+            <% members.forEach(member => { %>
+            <div class="member-card">
+                <div class="member-avatar">
+                    <img src="<%= member.avatar || '/img/default-avatar.png' %>" 
+                         alt="<%= member.username %>'s avatar">
+                    <span class="role-badge <%= member.role %>">
+                        <%= member.role %>
+                    </span>
+                </div>
+                <div class="member-info">
+                    <h4><%= member.username %></h4>
+                    <p class="member-email"><%= member.email %></p>
+                    <div class="member-stats">
+                        <span class="stat">
+                            <i class="fas fa-star"></i>
+                            <%= member.points %> points
+                        </span>
+                        <span class="stat">
+                            <i class="fas fa-check"></i>
+                            <%= member.completed_chores || 0 %> completed
+                        </span>
+                    </div>
+                </div>
+                <% if (user.role === 'parent' && member.id !== user.id) { %>
+                <div class="member-actions">
+                    <button class="btn btn-icon change-role" 
+                            data-member-id="<%= member.id %>"
+                            data-current-role="<%= member.role %>">
+                        <i class="fas fa-user-cog"></i>
+                    </button>
+                    <button class="btn btn-icon remove-member" 
+                            data-member-id="<%= member.id %>">
+                        <i class="fas fa-user-minus"></i>
+                    </button>
+                </div>
+                <% } %>
+            </div>
+            <% }) %>
+        </div>
+    </div>
+
+    <!-- Pending Invites -->
+    <div class="invites-section">
+        <h3>Pending Invites</h3>
+        <% if (invites.length === 0) { %>
+        <p class="empty-state">No pending invites</p>
+        <% } else { %>
+        <div class="invites-list">
+            <% invites.forEach(invite => { %>
+            <div class="invite-item">
+                <div class="invite-info">
+                    <span class="invite-email"><%= invite.email %></span>
+                    <span class="invite-date">
+                        Sent <%= new Date(invite.created_at).toLocaleDateString() %>
+                    </span>
+                </div>
+                <div class="invite-actions">
+                    <button class="btn btn-sm btn-outline resend-invite" 
+                            data-invite-id="<%= invite.id %>">
+                        Resend
+                    </button>
+                    <button class="btn btn-sm btn-danger cancel-invite" 
+                            data-invite-id="<%= invite.id %>">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+            <% }) %>
+        </div>
+        <% } %>
+    </div>
+</div>
+
+<!-- Invite Member Modal -->
+<div id="inviteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Invite Family Member</h2>
+            <button class="close-modal">&times;</button>
+        </div>
+        <form id="inviteForm">
+            <div class="form-group">
+                <label for="inviteEmail">Email Address</label>
+                <input type="email" id="inviteEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="inviteRole">Role</label>
+                <select id="inviteRole" required>
+                    <option value="child">Child</option>
+                    <option value="parent">Parent</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary close-modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Send Invite</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Family Name Modal -->
+<div id="editFamilyModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Edit Family Name</h2>
+            <button class="close-modal">&times;</button>
+        </div>
+        <form id="editFamilyForm">
+            <div class="form-group">
+                <label for="familyName">Family Name</label>
+                <input type="text" id="familyName" value="<%= family.name %>" required>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary close-modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/family.js"></script>

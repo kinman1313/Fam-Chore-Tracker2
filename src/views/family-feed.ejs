@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Feed - Chore Tracker</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/feed.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <%- include('partials/navbar') %>
+
+    <main class="feed-container">
+        <!-- Create Post Section -->
+        <div class="create-post-card">
+            <form id="createPostForm" class="post-form">
+                <div class="post-input-wrapper">
+                    <textarea 
+                        placeholder="Share something with the family..."
+                        class="post-input"
+                        id="postContent"
+                    ></textarea>
+                    <button type="button" class="gif-button" id="gifButton">
+                        GIF
+                    </button>
+                </div>
+                <div id="selectedGif" class="selected-gif-preview"></div>
+                <div class="post-actions">
+                    <button type="submit" class="button button-primary">
+                        Post
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Posts Feed -->
+        <div class="posts-feed" id="postsFeed">
+            <!-- Posts will be loaded here dynamically -->
+        </div>
+
+        <!-- GIF Picker Modal -->
+        <div id="gifModal" class="modal">
+            <div class="modal-content gif-modal">
+                <span class="close-modal">&times;</span>
+                <div class="gif-search">
+                    <input 
+                        type="text" 
+                        id="gifSearch" 
+                        placeholder="Search GIFs..."
+                        class="gif-search-input"
+                    >
+                </div>
+                <div class="gif-grid" id="gifGrid"></div>
+            </div>
+        </div>
+    </main>
+
+    <%- include('partials/feed-scripts') %>
+</body>
+</html>

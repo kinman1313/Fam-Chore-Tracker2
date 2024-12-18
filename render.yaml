@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: famchores
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start  # Simplified start command
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: TOKEN_SECRET  # Added for JWT authentication
+        generateValue: true
+      - key: MONGODB_URI  # Added for MongoDB connection
+        sync: false  # This will need to be set manually in Render dashboard
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 5
+    healthCheckPath: /health
+    autoDeploy: true
+    plan: starter # Specify the plan if needed
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+      headers:
+        - path: /*
+          name: X-Frame-Options
+          value: DENY
+      routes:
+        - type: rewrite
+          source: /*
+          destination: /index.html
+        - type: rewrite
+          source: /*
+          destination: /index.html
